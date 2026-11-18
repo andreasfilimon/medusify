@@ -1,0 +1,18 @@
+{
+  "id": "/medusify/",
+  "name": "Medusify",
+  "short_name": "Medusify",
+  "description": "Bestellungen und Versand für Medusa-Shops",
+  "lang": "de",
+  "start_url": "/medusify/",
+  "scope": "/medusify/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#F2F3F5",
+  "background_color": "#F2F3F5",
+  "icons": [
+    { "src": "/medusify/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/medusify/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/medusify/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

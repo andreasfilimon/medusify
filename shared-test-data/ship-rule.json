@@ -1,0 +1,55 @@
+{
+  "description": "Which orders still have to be shipped. Read by the plugin (needsShipping) and by the PWA (orderState), so both apply one rule. Written by hand from Medusa's own status lists (core-flows order/utils/aggregate-status.js), never generated from either implementation.",
+  "payment_statuses": [
+    "not_paid",
+    "awaiting",
+    "authorized",
+    "partially_authorized",
+    "captured",
+    "partially_captured",
+    "partially_refunded",
+    "refunded",
+    "canceled",
+    "requires_action"
+  ],
+  "fulfillment_statuses": [
+    "not_fulfilled",
+    "partially_fulfilled",
+    "fulfilled",
+    "partially_shipped",
+    "shipped",
+    "partially_delivered",
+    "delivered",
+    "canceled"
+  ],
+  "shippable": {
+    "order_status": [
+      "pending",
+      "requires_action"
+    ],
+    "payment": [
+      "captured",
+      "partially_refunded"
+    ],
+    "fulfillment": [
+      "not_fulfilled",
+      "partially_fulfilled",
+      "fulfilled",
+      "partially_shipped",
+      "canceled"
+    ]
+  },
+  "notes": {
+    "partially_refunded": "Medusa reports it as soon as any refund exists; the goods are still shipped. Only a full refund (refunded) ends the shipping, also when part of the order is already on its way.",
+    "canceled": "A canceled fulfillment gives its quantity back (order module, CANCEL_ITEM_FULFILLMENT lowers fulfilled_quantity), so a paid order whose only fulfillment was canceled still has to be shipped. A canceled order itself (order status canceled) is excluded before this rule.",
+    "order_status": "Medusa lets an order be completed (order module completeOrder) or archived without any check of shipping, so such an order can hold unshipped goods. Only pending and requires_action orders are counted and offered for shipping: the plugin scans exactly these (OPEN_STATUSES), the app follows. A completed or archived order is closed by the merchant and shows as open, canceled and draft orders are never shipped."
+  },
+  "order_statuses": [
+    "pending",
+    "requires_action",
+    "completed",
+    "archived",
+    "canceled",
+    "draft"
+  ]
+}

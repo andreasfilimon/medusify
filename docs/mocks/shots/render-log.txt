@@ -1,0 +1,10 @@
+Browser: WebKit 26.5  ·  Playwright device: iPhone 15 (viewport 393×852 to simulate a full-screen standalone app)
+OK   start-light: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   bestellliste-light: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   bestelldetail-light: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   versenden-sheet-light: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   start-dark: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   bestellliste-dark: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   bestelldetail-dark: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+OK   versenden-sheet-dark: scrollWidth=393 innerWidth=393 body=393 scroll-overflow-x=0 · tap targets<44: 0 · inputs<16px: 0 · text<11px: 0 · Root=17px · Noto Sans loaded=true · font-family="-apple-system, Noto Sans, system-ui, sans-serif"
+RESULT: all measurements pass

@@ -1,0 +1,21 @@
+title = "medusify"
+
+[extend]
+useDefault = true
+
+# The test fixtures use the public example push subscription from the web-push documentation and an all-placeholder key.
+# They are not credentials of anything.
+[[allowlists]]
+description = "Public example push subscription keys used as test fixtures"
+regexTarget = "match"
+regexes = [
+  '''BNcRdr[A-Za-z0-9_-]{60,}''',
+  '''tBHItJ[A-Za-z0-9_-]{10,}''',
+  '''BAECAw[A-Za-z0-9_-]{60,}''',
+]
+paths = [
+  '''plugin/scripts/smoke-packed\.sh''',
+  '''pwa/test/push\.test\.ts''',
+  '''plugin/integration-tests/helpers/admin\.ts''',
+]
+condition = "AND"

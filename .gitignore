@@ -1,0 +1,19 @@
+# Local working files, never published
+/PROJECT.md
+/STATUS.md
+/briefs/
+/runs/
+/internal/
+
+# Dependencies, build output, test output, secrets
+node_modules/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.template
+!.env.example
+*.tgz
+.devshop-mfa*
+*.log
+.DS_Store

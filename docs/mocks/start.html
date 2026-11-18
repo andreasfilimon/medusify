@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F3F5">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A0C0E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Start (Mock)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+<!--SPRITE--><svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-barcode" viewBox="0 0 256 256"><path d="M232,48V88a8,8,0,0,1-16,0V56H184a8,8,0,0,1,0-16h40A8,8,0,0,1,232,48ZM72,200H40V168a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16Zm152-40a8,8,0,0,0-8,8v32H184a8,8,0,0,0,0,16h40a8,8,0,0,0,8-8V168A8,8,0,0,0,224,160ZM32,96a8,8,0,0,0,8-8V56H72a8,8,0,0,0,0-16H32a8,8,0,0,0-8,8V88A8,8,0,0,0,32,96ZM80,80a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,80,80Zm104,88V88a8,8,0,0,0-16,0v80a8,8,0,0,0,16,0ZM144,80a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,144,80Zm-32,0a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,112,80Z"/></symbol><symbol id="i-caret-down" viewBox="0 0 256 256"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="i-check" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="i-clock" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></symbol><symbol id="i-dots-three" viewBox="0 0 256 256"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z"/></symbol><symbol id="i-house-fill" viewBox="0 0 256 256"><path d="M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z"/></symbol><symbol id="i-package" viewBox="0 0 256 256"><path d="M223.68,66.15,135.68,18a15.88,15.88,0,0,0-15.36,0l-88,48.17a16,16,0,0,0-8.32,14v95.64a16,16,0,0,0,8.32,14l88,48.17a15.88,15.88,0,0,0,15.36,0l88-48.17a16,16,0,0,0,8.32-14V80.18A16,16,0,0,0,223.68,66.15ZM128,32l80.34,44-29.77,16.3-80.35-44ZM128,120,47.66,76l33.9-18.56,80.34,44ZM40,90l80,43.78v85.79L40,175.82Zm176,85.78h0l-80,43.79V133.82l32-17.51V152a8,8,0,0,0,16,0V107.55L216,90v85.77Z"/></symbol><symbol id="i-receipt" viewBox="0 0 256 256"><path d="M72,104a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,104Zm8,40h96a8,8,0,0,0,0-16H80a8,8,0,0,0,0,16ZM232,56V208a8,8,0,0,1-11.58,7.15L192,200.94l-28.42,14.21a8,8,0,0,1-7.16,0L128,200.94,99.58,215.15a8,8,0,0,1-7.16,0L64,200.94,35.58,215.15A8,8,0,0,1,24,208V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Zm-16,0H40V195.06l20.42-10.22a8,8,0,0,1,7.16,0L96,199.06l28.42-14.22a8,8,0,0,1,7.16,0L160,199.06l28.42-14.22a8,8,0,0,1,7.16,0L216,195.06Z"/></symbol><symbol id="i-tag" viewBox="0 0 256 256"><path d="M243.31,136,144,36.69A15.86,15.86,0,0,0,132.69,32H40a8,8,0,0,0-8,8v92.69A15.86,15.86,0,0,0,36.69,144L136,243.31a16,16,0,0,0,22.63,0l84.68-84.68a16,16,0,0,0,0-22.63Zm-96,96L48,132.69V48h84.69L232,147.31ZM96,84A12,12,0,1,1,84,72,12,12,0,0,1,96,84Z"/></symbol><symbol id="i-users" viewBox="0 0 256 256"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></symbol></svg><!--/SPRITE-->
+<div class="statusbar" aria-hidden="true"><span>9:41</span><span class="batt"><i></i></span></div>
+
+<header class="navbar">
+  <div class="navrow">
+    <button class="scope" aria-haspopup="menu" aria-label="Shop wählen: Alle Shops">
+      <span class="stack" aria-hidden="true"><span class="monogram sm shop-3"></span><span class="monogram sm shop-5"></span><span class="monogram sm shop-2"></span></span>
+      Alle Shops
+      <svg class="ic xs" aria-hidden="true"><use href="#i-caret-down"/></svg>
+    </button>
+  </div>
+  <div class="largetitle"><h1>Start</h1><p>Aktualisiert um 14:32 Uhr</p></div>
+</header>
+
+<main class="scroll">
+  <section class="band" aria-labelledby="ship-h">
+    <div class="head">
+      <svg class="ic" aria-hidden="true"><use href="#i-package"/></svg>
+      <div><h2 id="ship-h">7 Bestellungen zu versenden</h2><p><span class="nw">Kerzenwerk 4,</span> <span class="nw">Nordlicht Tee 2,</span> <span class="nw">Atelier Brandt 1</span></p></div>
+    </div>
+    <button class="btn primary"><svg class="ic sm" aria-hidden="true"><use href="#i-barcode"/></svg>Versand starten</button>
+  </section>
+
+  <section class="section" aria-labelledby="rev-h">
+    <div class="section-head"><h2 id="rev-h">Umsatz</h2>
+      <div class="segmented" role="tablist" aria-label="Zeitraum"><button role="tab" aria-selected="true">Heute</button><button role="tab" aria-selected="false">Monat</button></div>
+    </div>
+    <div class="group plain">
+      <div class="row"><div class="row-main"><div class="row-title reg">Euro</div><div class="row-sub">14 Bestellungen, 3 Shops</div></div><div class="amount big">1.240,80&nbsp;€</div></div>
+      <div class="row"><div class="row-main"><div class="row-title reg">Schweizer Franken</div><div class="row-sub">3 Bestellungen, 1 Shop</div></div><div class="amount big">310,00&nbsp;CHF</div></div>
+    </div>
+    <p class="foot">Währungen werden nicht zusammengerechnet.</p>
+  </section>
+
+  <section class="section" aria-labelledby="last-h">
+    <div class="section-head"><h2 id="last-h">Letzte Bestellungen</h2><a href="bestellliste.html">Alle anzeigen</a></div>
+    <div class="group">
+      <a class="row" href="bestelldetail.html" aria-label="Mara Vogt, Kerzenwerk, 63,90 Euro, zu versenden, vor 4 Minuten">
+        <span class="monogram shop-3" aria-hidden="true">K</span>
+        <span class="row-main"><span class="row-title">Mara Vogt</span><span class="row-sub">Kerzenwerk, <span class="nw">vor 4 Min</span></span></span>
+        <span class="row-end"><span class="amount">63,90&nbsp;€</span><span class="chip warn"><svg class="ic xs" aria-hidden="true"><use href="#i-package"/></svg>Zu versenden</span></span>
+      </a>
+      <a class="row" href="bestelldetail.html" aria-label="Jonas Brenner, Nordlicht Tee, 24,50 Euro, zu versenden, vor 21 Minuten">
+        <span class="monogram shop-5" aria-hidden="true">N</span>
+        <span class="row-main"><span class="row-title">Jonas Brenner</span><span class="row-sub">Nordlicht Tee, <span class="nw">vor 21 Min</span></span></span>
+        <span class="row-end"><span class="amount">24,50&nbsp;€</span><span class="chip warn"><svg class="ic xs" aria-hidden="true"><use href="#i-package"/></svg>Zu versenden</span></span>
+      </a>
+      <a class="row" href="bestelldetail.html" aria-label="Selin Aydin, Kerzenwerk, 112 Euro, versendet, vor 1 Stunde">
+        <span class="monogram shop-3" aria-hidden="true">K</span>
+        <span class="row-main"><span class="row-title">Selin Aydin</span><span class="row-sub">Kerzenwerk, <span class="nw">vor 1 Std</span></span></span>
+        <span class="row-end"><span class="amount">112,00&nbsp;€</span><span class="chip neutral"><svg class="ic xs" aria-hidden="true"><use href="#i-check"/></svg>Versendet</span></span>
+      </a>
+      <a class="row" href="bestelldetail.html" aria-label="Elin Haugen, Atelier Brandt, 340 Franken, Zahlung offen, vor 2 Stunden">
+        <span class="monogram shop-2" aria-hidden="true">A</span>
+        <span class="row-main"><span class="row-title">Elin Haugen</span><span class="row-sub">Atelier Brandt, <span class="nw">vor 2 Std</span></span></span>
+        <span class="row-end"><span class="amount">340,00&nbsp;CHF</span><span class="chip neutral"><svg class="ic xs" aria-hidden="true"><use href="#i-clock"/></svg>Zahlung offen</span></span>
+      </a>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" role="tablist" aria-label="Hauptnavigation">
+  <a class="tab" role="tab" aria-selected="true" href="start.html"><svg class="ic" aria-hidden="true"><use href="#i-house-fill"/></svg>Start</a>
+  <a class="tab" role="tab" aria-selected="false" href="bestellliste.html"><svg class="ic" aria-hidden="true"><use href="#i-receipt"/></svg>Bestellungen<span class="badge" aria-label="7 zu versenden">7</span></a>
+  <a class="tab" role="tab" aria-selected="false" href="#"><svg class="ic" aria-hidden="true"><use href="#i-tag"/></svg>Produkte</a>
+  <a class="tab" role="tab" aria-selected="false" href="#"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg>Kunden</a>
+  <a class="tab" role="tab" aria-selected="false" href="#"><svg class="ic" aria-hidden="true"><use href="#i-dots-three"/></svg>Mehr</a>
+</nav>
+</body>
+</html>

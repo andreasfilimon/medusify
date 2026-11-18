@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (typecheck, unit tests, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: pwa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pwa/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: The committed bundle matches the source
+        # plugin/pwa-dist is packed with the plugin. A change to pwa/src has to come with a rebuilt bundle.
+        run: test -z "$(git status --porcelain -- ../plugin/pwa-dist)"
+
+  plugin:
+    name: Plugin (typecheck, unit and integration tests, build, package)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: plugin
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7
+        env:
+          POSTGRES_PASSWORD: medusify_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throw-away services of this job, not secrets. Same variables as plugin/scripts/run-tests.sh.
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USERNAME: postgres
+      DB_PASSWORD: medusify_test
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugin/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: ./scripts/run-tests.sh
+      - run: npm run build
+      - name: Package contents
+        # The tarball holds the compiled plugin and the app bundle, and no tests, source maps or dev shop files.
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const fs = require("fs")
+            const files = JSON.parse(fs.readFileSync("pack.json", "utf8"))[0].files.map((f) => f.path)
+            const bad = files.filter((p) => /__tests__|integration-tests|\.map$|medusa-config|\.env/.test(p))
+            const withMaps = files.filter((p) => p.endsWith(".js") && fs.readFileSync(p, "utf8").includes("sourceMappingURL"))
+            console.log(files.length + " files in the package")
+            if (bad.length || withMaps.length) { console.error("unexpected files:", bad, "source map comments in:", withMaps); process.exit(1) }
+          '

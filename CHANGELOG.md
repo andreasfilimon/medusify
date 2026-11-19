@@ -2,6 +2,19 @@
 
 All notable changes to Medusify. The plugin (`medusify`) and the app in `pwa/` share one version number.
 
+## 0.2.1 - 2026-11-19
+
+### Fixed
+
+- A refund that the shop answers with "still in progress" (409) now counts as unknown, not as refused. The app keeps the
+  idempotency key and the lock until the order has been read again, so a retry cannot become a second refund.
+
+### Security
+
+- Development dependencies raised to patched versions through `overrides` (zod 4.6.7, ajv 8.20, uuid 11.1.1). They came in
+  through Medusa's own packages and only affect the plugin's test setup and the dev shop, not shops that install Medusify.
+  `npm audit` reports 0 vulnerabilities in `plugin/` and `dev-shop/`.
+
 ## 0.2.0 - 2026-11-18
 
 ### Added

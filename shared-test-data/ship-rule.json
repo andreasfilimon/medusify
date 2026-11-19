@@ -51,5 +51,80 @@
     "archived",
     "canceled",
     "draft"
-  ]
+  ],
+  "unsent_rest": {
+    "note": "Medusa's aggregated fulfillment status hides goods that still have to go out. It reports partially_delivered as soon as one fulfillment is delivered (aggregate-status.js, the delivered branch comes first), and in a list read without the line details it reports the full form: an order with a delivered voucher and goods not packed at all reads delivered in getOrdersListWorkflow (measured 2026-11-19), so the dashboard did not count it. A finished order of shipped goods and a delivered voucher reads partially_delivered too (measured: goods shipped 1/delivered 0, voucher shipped 0/delivered 1). So the line details decide when they are read: a paid open order has to be shipped when a line has units that are neither shipped nor delivered (quantity > max(shipped_quantity, delivered_quantity)), whatever the status says. Without line details the status lists above decide, as before.",
+    "item_columns": [
+      "quantity",
+      "shipped_quantity",
+      "delivered_quantity"
+    ],
+    "item_cases": [
+      {
+        "items": [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            1
+          ]
+        ],
+        "rest": false
+      },
+      {
+        "items": [
+          [
+            2,
+            2,
+            2
+          ]
+        ],
+        "rest": false
+      },
+      {
+        "items": [
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            2,
+            0,
+            0
+          ]
+        ],
+        "rest": true
+      },
+      {
+        "items": [
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            2,
+            1,
+            0
+          ]
+        ],
+        "rest": true
+      },
+      {
+        "items": [
+          [
+            3,
+            1,
+            2
+          ]
+        ],
+        "rest": true
+      }
+    ]
+  }
 }

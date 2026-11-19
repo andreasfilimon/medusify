@@ -477,7 +477,7 @@ medusaIntegrationTestRunner({
       describe("GET /admin/medusify/permissions", () => {
         it("without roles every action is allowed", async () => {
           const res = await api.get("/admin/medusify/permissions", { headers: admin.headers })
-          expect(res.data.actions).toEqual({ capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true })
+          expect(res.data.actions).toEqual({ capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true })
         })
 
         it("needs a login", async () => {

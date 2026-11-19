@@ -20,6 +20,7 @@ import {
   PostPushPreference,
   PostPushSubscription,
   PostReturn,
+  PostShip,
 } from "./admin/medusify/validators"
 
 /**
@@ -79,6 +80,12 @@ const routes: MiddlewareRoute[] = [
     matcher: "/admin/medusify/returns",
     method: "POST",
     middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.return]), validateAndTransformBody(PostReturn)],
+  },
+  {
+    // The rights Medusa asks for on its fulfillment and shipment routes, together.
+    matcher: "/admin/medusify/orders/:id/ship",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.ship]), validateAndTransformBody(PostShip)],
   },
   {
     // Medusa's own right for canceling. Whether the order holds captured money, and so needs the refund right too, is

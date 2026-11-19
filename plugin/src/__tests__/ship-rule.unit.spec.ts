@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { OrderStatus } from "@medusajs/framework/utils"
-import { needsShipping, OPEN_STATUSES } from "../lib/dashboard"
+import { hasUnsentRest, needsShipping, OPEN_STATUSES } from "../lib/dashboard"
 
 const rule = JSON.parse(readFileSync(join(__dirname, "../../../shared-test-data/ship-rule.json"), "utf8")) as {
   order_statuses: string[]
   payment_statuses: string[]
   fulfillment_statuses: string[]
   shippable: { order_status: string[]; payment: string[]; fulfillment: string[] }
+  unsent_rest: { item_cases: { items: number[][]; rest: boolean }[] }
 }
 
 /** The statuses Medusa can report, read from its own source so the table cannot silently miss a new one. */
@@ -38,5 +39,22 @@ describe("ship rule (shared with the PWA)", () => {
 
   it("a fully refunded order is never to ship, whatever is already on its way", () => {
     for (const f of rule.fulfillment_statuses) expect(needsShipping("refunded", f)).toBe(false)
+  })
+
+  const restCases = rule.payment_statuses.flatMap((p) =>
+    rule.fulfillment_statuses.map((f) => [p, f, rule.shippable.payment.includes(p)] as const),
+  )
+
+  it.each(restCases)("with goods neither shipped nor delivered, needsShipping(%s, %s) is %s whatever the status says", (payment, fulfillment, expected) => {
+    expect(needsShipping(payment, fulfillment, true)).toBe(expected)
+  })
+
+  it.each(rule.unsent_rest.item_cases)("lines $items have an unsent rest: $rest", ({ items, rest }) => {
+    expect(hasUnsentRest(items.map(([quantity, shipped_quantity, delivered_quantity]) => ({ quantity, detail: { shipped_quantity, delivered_quantity } })))).toBe(rest)
+  })
+
+  it("lines without details count as done", () => {
+    expect(hasUnsentRest([{ quantity: 2 }])).toBe(false)
+    expect(hasUnsentRest(undefined)).toBe(false)
   })
 })

@@ -22,7 +22,11 @@ type OrderOpts = {
   regionId: string
   currency?: string
   country?: string
-  items?: { title: string; quantity: number; unit_price: number }[]
+  items?: { title: string; quantity: number; unit_price: number; requires_shipping?: boolean }[]
+  /** The shipping option of the shipping method (needed to create fulfillments). */
+  shippingOptionId?: string
+  /** A digital order: no shipping method at all. */
+  noShippingMethod?: boolean
   shipping?: number
   status?: string
   paid?: boolean
@@ -32,7 +36,7 @@ type OrderOpts = {
 export async function createDemoOrder(container: MedusaContainer, o: OrderOpts) {
   const currency = o.currency ?? "eur"
   const items = o.items ?? [{ title: "Widget", quantity: 2, unit_price: 19.99 }]
-  const shipping = o.shipping ?? 5
+  const shipping = o.noShippingMethod ? 0 : (o.shipping ?? 5)
   const { result } = await createOrderWorkflow(container).run({
     input: {
       region_id: o.regionId,
@@ -40,7 +44,7 @@ export async function createDemoOrder(container: MedusaContainer, o: OrderOpts) 
       email: "buyer@example.invalid",
       status: o.status,
       items,
-      shipping_methods: [{ name: "Standard", amount: shipping }],
+      shipping_methods: o.noShippingMethod ? [] : [{ name: "Standard", amount: shipping, ...(o.shippingOptionId ? { shipping_option_id: o.shippingOptionId } : {}) }],
       shipping_address: {
         first_name: "Demo",
         last_name: "Buyer",

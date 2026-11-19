@@ -28,6 +28,12 @@ export const ADMIN_ACTIONS = {
     { resource: "refund", operation: "create" },
     { resource: "order", operation: "update" },
   ],
+  /** Ship: the plugin's own ship route creates fulfillments and registers their shipments, Medusa's two routes in one. */
+  ship: [
+    { resource: "fulfillment", operation: "create" },
+    { resource: "fulfillment", operation: "update" },
+    { resource: "order", operation: "update" },
+  ],
   /** The plugin's own return route runs the whole return flow in one request. */
   return: [
     { resource: "return", operation: "create" },

@@ -25,7 +25,8 @@ export function actionErrorText(t: Translate, err: unknown): { text: string; unk
   const f = shipFailure(err)
   if (f.kind === "unknown") return { text: t("act.failedUnknown"), unknown: true }
   if (f.kind === "auth") return { text: t("act.failedAuth"), unknown: false }
-  return { text: t("act.failed", { reason: f.reason ?? t("act.failedGeneric") }), unknown: false }
+  // "numbers" comes only from the ship route, never from these actions.
+  return { text: t("act.failed", { reason: (f.kind === "rejected" ? f.reason : undefined) ?? t("act.failedGeneric") }), unknown: false }
 }
 
 /**

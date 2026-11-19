@@ -43,6 +43,7 @@ export function OrderDetail({ id }: { id: string }) {
   const intentDone = useRef(false)
   const toast = useToast()
   const [shipping, setShipping] = useState(false)
+  const [shipBusy, setShipBusy] = useState(false)
   const authed = shops.filter((s) => s.home || s.token)
   const query = useQuery({ queryKey: ["order", shopId ?? "any", id], queryFn: () => locate(authed, shopId, id), retry: false })
   useEffect(() => {
@@ -88,7 +89,8 @@ export function OrderDetail({ id }: { id: string }) {
   const money = (n: number | undefined) => formatMoney(n ?? 0, order.currency_code, lang)
   const items = order.items ?? []
   const totalQty = items.reduce((s, i) => s + i.quantity, 0)
-  const shippedQty = items.reduce((s, i) => s + Number(i.detail?.shipped_quantity ?? 0), 0)
+  // Shipped or, for goods without shipping (a voucher), delivered.
+  const shippedQty = items.reduce((s, i) => s + Math.max(Number(i.detail?.shipped_quantity ?? 0), Number(i.detail?.delivered_quantity ?? 0)), 0)
   const a = order.shipping_address
   const contact = contactLinks(order)
   const shipments = (order.fulfillments ?? []).filter((f) => f.shipped_at && !f.canceled_at)
@@ -204,8 +206,8 @@ export function OrderDetail({ id }: { id: string }) {
       ) : null}
 
       {shipping ? (
-        <Sheet title={t("ship.title")} onClose={() => setShipping(false)}>
-          <ShipForm shop={shop} order={order} onDone={() => setShipping(false)} />
+        <Sheet title={t("ship.title")} onClose={() => setShipping(false)} locked={shipBusy}>
+          <ShipForm shop={shop} order={order} onDone={() => setShipping(false)} onBusyChange={setShipBusy} />
         </Sheet>
       ) : null}
     </div>

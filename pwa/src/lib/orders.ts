@@ -3,7 +3,7 @@ import type { Order, DashboardOrder } from "./types"
 export type OrderFilter = "open" | "shipped" | "canceled" | "all"
 export type OrderState = "to_ship" | "partly" | "payment_pending" | "refunded" | "shipped" | "canceled" | "open"
 
-type Stated = Pick<Order, "status" | "payment_status" | "fulfillment_status"> | DashboardOrder
+type Stated = (Pick<Order, "status" | "payment_status" | "fulfillment_status"> & Partial<Pick<Order, "items">>) | DashboardOrder
 
 const SHIPPED = new Set(["shipped", "delivered", "partially_delivered"])
 const PARTLY = new Set(["partially_shipped", "partially_fulfilled"])
@@ -29,13 +29,27 @@ const OPEN_ORDER = new Set(["pending", "requires_action"])
  */
 export function orderState(o: Stated): OrderState {
   if (o.status === "canceled") return "canceled"
-  if (SHIPPED.has(o.fulfillment_status)) return "shipped"
+  const rest = unsentRest(o)
+  if (SHIPPED.has(o.fulfillment_status) && !rest) return "shipped"
   if (o.payment_status === "refunded") return "refunded"
   if (o.payment_status === "captured" || o.payment_status === "partially_refunded") {
     if (!OPEN_ORDER.has(o.status)) return "open"
-    return PARTLY.has(o.fulfillment_status) ? "partly" : "to_ship"
+    return PARTLY.has(o.fulfillment_status) || SHIPPED.has(o.fulfillment_status) ? "partly" : "to_ship"
   }
   return "payment_pending"
+}
+
+/**
+ * Some line has units that are neither shipped nor delivered. Medusa's aggregated status hides such goods: it reports
+ * "partially_delivered" as soon as one fulfillment is delivered (a voucher next to goods only packed), and a list read
+ * without line details even reports "delivered" (measured 2026-11-19). The line details decide when they were read,
+ * the dashboard brings the plugin's answer; a line without details counts as done (the status decides, as before).
+ * Same rule as the plugin's `hasUnsentRest` (shared-test-data/ship-rule.json, unsent_rest).
+ */
+export function unsentRest(o: Stated): boolean {
+  if ("unsent_rest" in o && typeof o.unsent_rest === "boolean") return o.unsent_rest
+  const items = "items" in o ? o.items : undefined
+  return (items ?? []).some((i) => !!i.detail && i.quantity > Math.max(Number(i.detail.shipped_quantity ?? 0), Number(i.detail.delivered_quantity ?? 0)))
 }
 
 export function matchesFilter(o: Stated, filter: OrderFilter): boolean {

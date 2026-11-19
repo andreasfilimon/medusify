@@ -32,6 +32,8 @@ function stubShop(initial: Shape, afterFulfill?: Shape, optionGone = false) {
       const method = init.method ?? "GET"
       calls.push({ path, method, body: init.body ? JSON.parse(String(init.body)) : undefined })
       const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
+      // These cases test the old way (a plugin without the ship route); the route itself is tested in the plugin.
+      if (method === "POST" && path.includes("/medusify/orders/o1/ship")) return new Response("Cannot POST", { status: 404 })
       if (method === "POST" && path.endsWith("/fulfillments")) {
         fulfilledNow = true
         return ok({})
@@ -62,7 +64,7 @@ function renderQueue() {
 
 /** The form with its location query settled: the user cannot tap faster than the shop answers. */
 async function formReady() {
-  const tracking = await screen.findByLabelText("Sendungsnummer")
+  const tracking = await screen.findByLabelText("Sendungsnummer (optional)")
   // The form reads the order itself for the location choice, then the option or the list.
   await waitFor(() => expect(calls.some((c) => c.path.startsWith("/admin/orders/o1?"))).toBe(true))
   await new Promise((r) => setTimeout(r, 100))
@@ -112,5 +114,54 @@ describe("ship queue with several stock locations", () => {
     fireEvent.click(screen.getByRole("button", { name: "Als versendet markieren" }))
     await waitFor(() => expect(posts().some((c) => c.path.endsWith("/shipments"))).toBe(true))
     expect(posts().some((c) => c.path.endsWith("/fulfillments"))).toBe(false)
+  })
+})
+
+describe("ship queue paging and skipping", () => {
+  /** 50 open but unpaid orders on the first page (the feed counts them as open rows, the queue skips them), one to ship on the second. */
+  function stubPages(secondFails = false) {
+    calls = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        const path = url.replace("https://a", "")
+        calls.push({ path, method: init.method ?? "GET" })
+        const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
+        if (path.startsWith("/admin/orders?")) {
+          const offset = Number(new URLSearchParams(path.split("?")[1]).get("offset"))
+          if (offset === 0) return ok({ orders: Array.from({ length: 50 }, (_, n) => ({ ...order(`s${n}`), payment_status: "not_paid", items: [] })), count: 51 })
+          if (secondFails) return new Response(JSON.stringify({ message: "down" }), { status: 503 })
+          return ok({ orders: [{ ...listed, display_id: 77 }], count: 51 })
+        }
+        if (path.startsWith("/admin/orders/o1?")) return ok({ order: { ...order("o1"), items: line(0), fulfillments: [], shipping_methods: [] } })
+        if (path.startsWith("/admin/stock-locations")) return ok({ stock_locations: [{ id: "sloc_wien", name: "Wien" }] })
+        return new Response(JSON.stringify({ message: "x" }), { status: 500 })
+      }),
+    )
+  }
+
+  it("loads the next page when the first holds nothing to ship", async () => {
+    // Before, the queue said "Alles versendet." with paid orders still waiting on the next page.
+    stubPages()
+    renderQueue()
+    expect(await screen.findByText(/#77/)).toBeTruthy()
+    expect(calls.filter((c) => c.path.startsWith("/admin/orders?")).length).toBe(2)
+  })
+
+  it("after skipping, the end says the skipped orders stay open", async () => {
+    stubPages()
+    renderQueue()
+    await screen.findByText(/#77/)
+    fireEvent.click(screen.getByRole("button", { name: "Überspringen" }))
+    expect(await screen.findByText(/1 übersprungen, die bleiben offen/)).toBeTruthy()
+  })
+
+  it("a failed next page says so instead of \"all shipped\", and does not ask again in a loop", async () => {
+    stubPages(true)
+    renderQueue()
+    expect((await screen.findByRole("alert")).textContent).toMatch(/konnten nicht geladen werden/)
+    expect(screen.queryByText(/Alles versendet|Warteschlange leer/)).toBeNull()
+    await new Promise((r) => setTimeout(r, 300))
+    expect(calls.filter((c) => c.path.startsWith("/admin/orders?")).length).toBe(2)
   })
 })

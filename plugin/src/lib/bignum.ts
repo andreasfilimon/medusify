@@ -1,6 +1,6 @@
 import { MathBN } from "@medusajs/framework/utils"
 
-type Amount = number | string | { value?: string | number } | null | undefined
+export type Amount = number | string | { value?: string | number } | null | undefined
 
 /** Medusa returns money as number, numeric string or BigNumber-like `{ value }`. */
 export function toBN(value: Amount) {

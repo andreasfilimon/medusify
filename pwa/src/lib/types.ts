@@ -30,6 +30,8 @@ export type DashboardOrder = {
   fulfillment_status: string
   country_code: string | null
   item_count: number
+  /** Some line has units that are neither shipped nor delivered (plugin 0.2.2 and later; see `unsentRest`). */
+  unsent_rest?: boolean
 }
 
 export type Dashboard = {
@@ -44,6 +46,8 @@ export type Dashboard = {
 }
 
 export type OrderItem = {
+  /** False for goods without shipping (a voucher, a download): they get no parcel. */
+  requires_shipping?: boolean | null
   id: string
   title: string
   product_title?: string | null
@@ -55,6 +59,7 @@ export type OrderItem = {
   detail?: {
     fulfilled_quantity?: number
     shipped_quantity?: number
+    delivered_quantity?: number
     return_requested_quantity?: number
     return_received_quantity?: number
     return_dismissed_quantity?: number
@@ -113,8 +118,9 @@ export type Order = {
     delivered_at?: string | null
     canceled_at?: string | null
     location_id?: string | null
+    requires_shipping?: boolean | null
     items?: { line_item_id: string; inventory_item_id?: string | null; quantity: number }[]
-    labels?: { tracking_number?: string | null; tracking_url?: string | null }[]
+    labels?: { tracking_number?: string | null; tracking_url?: string | null; label_url?: string | null }[]
   }[]
   payment_collections?: PaymentCollection[]
 }

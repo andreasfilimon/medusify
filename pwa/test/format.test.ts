@@ -25,3 +25,10 @@ describe("format", () => {
     expect(dayGroup(new Date(2026, 10, 15, 8).toISOString(), now, "en").label).toBe("Yesterday")
   })
 })
+
+describe("cleanTrackingNumber with GS1 text", () => {
+  it("drops the brackets around an application identifier and the group separator", () => {
+    expect(cleanTrackingNumber("(00) 3404 3416 1234 5678 90")).toBe("00340434161234567890")
+    expect(cleanTrackingNumber("]C1003404341612345678\u001d90")).toBe("00340434161234567890")
+  })
+})

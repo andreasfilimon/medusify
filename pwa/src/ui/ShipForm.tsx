@@ -18,7 +18,7 @@ const URL_OK = /^https?:\/\/\S+$/i
  * Tracking number capture: camera scan with typed input as the fallback, then "Als versendet markieren".
  * The camera opens only here, which the user reached with a tap on "Versenden".
  */
-export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; onDone(): void }) {
+export function ShipForm({ shop, order, onDone, onBusyChange }: { shop: Shop; order: Order; onDone(): void; onBusyChange?(busy: boolean): void }) {
   const { t, online } = useApp()
   const qc = useQueryClient()
   const toast = useToast()
@@ -28,6 +28,9 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
   const [camera, setCamera] = useState<Camera>("starting")
   const [tracking, setTracking] = useState("")
   const [detected, setDetected] = useState(false)
+  // Once the user typed, the camera no longer writes into the field (it kept replacing a corrected number).
+  const typed = useRef(false)
+  const [numbers, setNumbers] = useState<Record<string, string>>({})
   const [url, setUrl] = useState("")
   const [notify, setNotify] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,19 +40,39 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
   const inSheet = useInSheet()
   const locationId = useId()
   const [chosenLocation, setChosenLocation] = useState<string | null>(null)
-  // Where the goods leave from. One location needs no question; with several the user picks, the first one is preselected.
-  const locations = useQuery({ queryKey: ["ship-locations", shop.id, order.id], queryFn: () => api.fulfillmentLocations(shop, order), staleTime: 5 * 60_000 })
-  const choices = locations.data ?? []
+  // Where the goods leave from (one location needs no question; with several the user picks, the first one is
+  // preselected) and the packages packed earlier, with the numbers a carrier integration gave them.
+  const plan = useQuery({ queryKey: ["ship-locations", shop.id, order.id], queryFn: () => api.shipPlan(shop, order), staleTime: 5 * 60_000 })
+  const perms = useQuery({ queryKey: ["permissions", shop.id], queryFn: () => api.getPermissions(shop), staleTime: 5 * 60_000, retry: false })
+  const mayShip = perms.data?.ship !== false
+  const choices = plan.data?.locations ?? []
+  const packages = plan.data?.packages ?? []
+  const labelled = packages.filter((p) => p.labels.length > 0)
+  // The main field is the number of the package packed now; with nothing to pack, of the only package packed earlier.
+  // Every other package packed earlier without a number gets a field of its own.
+  const mainFor = plan.data && !plan.data.packsNew && packages.length === 1 ? packages[0] : undefined
+  // Several packages waiting and nothing new to pack: one number cannot belong to all, each gets its own field.
+  const mainHidden = !!plan.data && !plan.data.packsNew && packages.length > 1
+  const extra = plan.data ? packages.filter((p) => p !== mainFor && p.labels.length === 0) : []
+  // Where a scanned number goes: the main field, or with the main field hidden the first empty package field.
+  const scanInto = useRef<(value: string) => void>(() => {})
+  scanInto.current = (value) => {
+    if (!mainHidden) {
+      if (typed.current) return
+      setTracking(value)
+      setDetected(true)
+      return
+    }
+    const empty = extra.find((p) => !numbers[p.id]?.trim())
+    if (empty && !Object.values(numbers).includes(value)) setNumbers((prev) => ({ ...prev, [empty.id]: value }))
+  }
   const location = chosenLocation && choices.some((l) => l.id === chosenLocation) ? chosenLocation : choices[0]?.id
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       if (!video.current) return
-      const res = await startScan(video.current, (value) => {
-        setTracking(value)
-        setDetected(true)
-      })
+      const res = await startScan(video.current, (value) => scanInto.current(value))
       if (!alive) {
         if (res.kind === "started") res.handle.stop()
         return
@@ -72,29 +95,33 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
 
   async function submit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (pending.current || !number || urlBad) return
+    if (pending.current || urlBad || !mayShip) return
     pending.current = true
     setBusy(true)
+    onBusyChange?.(true)
     setError(null)
+    const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ["order"] }), qc.invalidateQueries({ queryKey: ["orders"] }), qc.invalidateQueries({ queryKey: ["dashboard"] })])
     try {
-      await api.shipOrder(shop, order, { tracking_number: number, tracking_url: url.trim() || undefined, notify, location_id: location })
+      const cleaned = Object.fromEntries(extra.map((p) => [p.id, cleanTrackingNumber(numbers[p.id] ?? "")]).filter(([, v]) => v))
+      const outcome = await api.shipOrder(shop, order, { tracking_number: mainHidden ? undefined : number || undefined, tracking_url: url.trim() || undefined, notify, location_id: location, numbers: cleaned })
       handle.current?.stop()
-      await Promise.all([qc.invalidateQueries({ queryKey: ["order"] }), qc.invalidateQueries({ queryKey: ["orders"] }), qc.invalidateQueries({ queryKey: ["dashboard"] })])
-      toast.show(t("ship.done"))
+      await refresh()
+      toast.show(outcome?.unusedNumber ? t("ship.doneNumberUnused") : t("ship.done"))
       onDone()
     } catch (err) {
-      // The fulfillment may exist already (the shipment is the step that failed): the stock location is then fixed.
+      // Part of the work may be done (a package packed, a shipment registered): the screen reads the order again in
+      // every case, and the stock location of a package that exists is fixed.
       void qc.invalidateQueries({ queryKey: ["ship-locations"] })
+      void refresh()
       const failure = api.shipFailure(err)
-      if (failure.kind === "unknown") {
-        // The shop may have created the shipment before the connection broke: read the order again so the screen shows the truth.
-        void Promise.all([qc.invalidateQueries({ queryKey: ["order"] }), qc.invalidateQueries({ queryKey: ["orders"] }), qc.invalidateQueries({ queryKey: ["dashboard"] })])
-        setError(t("ship.failedUnknown"))
-      } else if (failure.kind === "auth") setError(t("ship.failedAuth"))
+      if (failure.kind === "unknown") setError(t("ship.failedUnknown"))
+      else if (failure.kind === "numbers") setError(t("ship.numbersRequired"))
+      else if (failure.kind === "auth") setError(t("ship.failedAuth"))
       else setError(t("ship.failed", { reason: failure.reason ?? t("ship.failedGeneric") }))
     } finally {
       pending.current = false
       setBusy(false)
+      onBusyChange?.(false)
     }
   }
 
@@ -116,26 +143,52 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
         </span>
         <span className="hint">{camera === "starting" ? t("ship.starting") : t("ship.hint")}</span>
       </div>
-      <label className="field">
-        <span>{t("ship.tracking")}</span>
-        <input
-          type="text"
-          name="tracking"
-          inputMode="text"
-          autoCapitalize="characters"
-          autoCorrect="off"
-          spellCheck={false}
-          autoComplete="off"
-          enterKeyHint="go"
-          value={tracking}
-          onChange={(e) => {
-            setTracking(e.target.value)
-            setDetected(false)
-          }}
-          aria-describedby={error ? errId : undefined}
-        />
-        {detected ? <small className="help"><Icon name="check-circle" size="xs" />{t("ship.detected")}</small> : null}
-      </label>
+      {mainHidden ? null : (
+        <label className="field">
+          <span>{t("ship.tracking")}</span>
+          <input
+            type="text"
+            name="tracking"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="off"
+            enterKeyHint="go"
+            value={tracking}
+            onChange={(e) => {
+              setTracking(e.target.value)
+              setDetected(false)
+              // An emptied field takes the camera's number again.
+              typed.current = e.target.value.trim() !== ""
+            }}
+            aria-describedby={error ? errId : undefined}
+          />
+          {detected ? <small className="help"><Icon name="check-circle" size="xs" />{t("ship.detected")}</small> : null}
+        </label>
+      )}
+      {!mainHidden && !number && labelled.length === 0 && plan.data ? <p className="help ship-labels">{t("ship.noNumber")}</p> : null}
+      {labelled.length > 0 ? (
+        <p className="help ship-labels">
+          <Icon name="check-circle" size="xs" />
+          {t("ship.carrierLabel", { numbers: labelled.flatMap((p) => p.labels).join(", ") })}
+        </p>
+      ) : null}
+      {extra.map((p, n) => (
+        <label className="field" key={p.id}>
+          <span>{t("ship.packedBefore", { n: n + 1 })}</span>
+          <input
+            type="text"
+            name={`tracking-${p.id}`}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="off"
+            value={numbers[p.id] ?? ""}
+            onChange={(e) => setNumbers((prev) => ({ ...prev, [p.id]: e.target.value }))}
+          />
+        </label>
+      ))}
       <label className="field">
         <span>{t("ship.trackingUrl")}</span>
         <input type="url" name="tracking-url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" enterKeyHint="go" value={url} onChange={(e) => setUrl(e.target.value)} aria-invalid={urlBad} />
@@ -158,12 +211,13 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
         <span>{t("ship.notify")}</span>
         <span className="track" aria-hidden="true" />
       </button>
+      {!mayShip ? <FieldError id={errId}>{t("ship.notAllowed")}</FieldError> : null}
       {error ? <FieldError id={errId}>{error}</FieldError> : null}
       {!online ? <FieldError id={errId}>{t("ship.offline")}</FieldError> : null}
       {inSheet ? (
-        <SheetAction label={t("ship.confirm")} form={formId} disabled={busy || !number || urlBad || !online} />
+        <SheetAction label={t("ship.confirm")} form={formId} disabled={busy || urlBad || !online || !mayShip} />
       ) : (
-        <button className="btn primary form-submit" type="submit" disabled={busy || !number || urlBad || !online}>
+        <button className="btn primary form-submit" type="submit" disabled={busy || urlBad || !online || !mayShip}>
           {t("ship.confirm")}
         </button>
       )}

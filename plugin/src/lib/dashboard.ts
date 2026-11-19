@@ -1,7 +1,7 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { MathBN } from "@medusajs/framework/utils"
 import { getOrdersListWorkflow } from "@medusajs/medusa/core-flows"
-import { toBN, toNumber } from "./bignum"
+import { toBN, toNumber, type Amount } from "./bignum"
 import { dayAndMonthStart } from "./time"
 
 const PAGE_SIZE = 500
@@ -32,9 +32,31 @@ const REVENUE_PAYMENT = ["authorized", "captured", "partially_refunded"]
  */
 const SHIPPABLE_PAYMENT = ["captured", "partially_refunded"]
 
-/** Paid (captured, possibly partly refunded) and not on its way yet. Exported for tests. */
-export function needsShipping(paymentStatus: string, fulfillmentStatus: string): boolean {
-  return SHIPPABLE_PAYMENT.includes(paymentStatus) && NOT_SHIPPED.includes(fulfillmentStatus)
+/**
+ * Paid (captured, possibly partly refunded) and not on its way yet. Exported for tests.
+ *
+ * `unsentRest`: some line has units that are neither shipped nor delivered (`hasUnsentRest`), when the line details
+ * were read. Medusa's aggregated status hides such goods: "partially_delivered" as soon as one fulfillment is delivered,
+ * and in a list read even "delivered" for a delivered voucher next to goods not packed at all (measured 2026-11-19).
+ * See shared-test-data/ship-rule.json, unsent_rest.
+ */
+export function needsShipping(paymentStatus: string, fulfillmentStatus: string, unsentRest = false): boolean {
+  if (!SHIPPABLE_PAYMENT.includes(paymentStatus)) return false
+  return NOT_SHIPPED.includes(fulfillmentStatus) || unsentRest
+}
+
+type RestLine = { quantity?: Amount; detail?: { shipped_quantity?: Amount; delivered_quantity?: Amount } | null }
+
+/** Fields an order needs for `hasUnsentRest`. */
+export const REST_FIELDS = ["items.quantity", "items.detail.shipped_quantity", "items.detail.delivered_quantity"]
+
+/** Some line has units that are neither shipped nor delivered. A line without details counts as done (as before this rule). */
+export function hasUnsentRest(items: readonly (RestLine | null | undefined)[] | null | undefined): boolean {
+  return (items ?? []).some((i) => {
+    if (!i?.detail) return false
+    const done = Math.max(toNumber(i.detail.shipped_quantity), toNumber(i.detail.delivered_quantity))
+    return toNumber(i.quantity) > done
+  })
 }
 
 /** Counts towards today's / this month's revenue. Exported for tests. */
@@ -61,6 +83,8 @@ export type MedusifyDashboard = {
     fulfillment_status: string
     country_code: string | null
     item_count: number
+    /** Some line has units that are neither shipped nor delivered (decides "partially_delivered", see needsShipping). */
+    unsent_rest: boolean
   }[]
 }
 
@@ -125,8 +149,8 @@ async function revenueSince(container: MedusaContainer, monthStart: Date, todayS
  */
 export async function countToShip(container: MedusaContainer): Promise<number> {
   let count = 0
-  for await (const order of pagedOrderList(container, ["id"], { status: OPEN_STATUSES })) {
-    if (needsShipping(order.payment_status, order.fulfillment_status)) count++
+  for await (const order of pagedOrderList(container, ["id", ...REST_FIELDS], { status: OPEN_STATUSES })) {
+    if (needsShipping(order.payment_status, order.fulfillment_status, hasUnsentRest(order.items))) count++
   }
   return count
 }
@@ -142,7 +166,7 @@ async function recentOrders(container: MedusaContainer): Promise<MedusifyDashboa
         "status",
         "summary.current_order_total",
         "shipping_address.country_code",
-        "items.quantity",
+        ...REST_FIELDS,
         "payment_collections.status",
         "fulfillments.packed_at",
       ],
@@ -165,6 +189,7 @@ async function recentOrders(container: MedusaContainer): Promise<MedusifyDashboa
     fulfillment_status: o.fulfillment_status,
     country_code: o.shipping_address?.country_code ?? null,
     item_count: (o.items ?? []).reduce((sum: number, i: any) => sum + toNumber(i?.quantity), 0),
+    unsent_rest: hasUnsentRest(o.items),
   }))
 }
 

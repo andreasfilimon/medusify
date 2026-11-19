@@ -67,7 +67,9 @@ export function dayGroup(iso: string, now: number, lang: Lang): { key: string; l
 
 /** Removes whitespace and the check prefix some carriers print in front of the number ("]C0", "]d2"). */
 export function cleanTrackingNumber(raw: string): string {
-  return raw.replace(/^\][A-Za-z][0-9A-Za-z]/, "").replace(/\s+/g, "").trim()
+  // A scanner's symbology prefix (]C0), GS1 brackets around an application identifier ("(00)" printed under a DHL code),
+  // the group separator of a GS1 code and blanks are not part of the number.
+  return raw.replace(/^\][A-Za-z][0-9A-Za-z]/, "").replace(/[()\u0000-\u001f\s]/g, "").trim()
 }
 
 export function deviceTimezone(): string {

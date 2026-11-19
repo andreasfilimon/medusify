@@ -56,3 +56,18 @@ export const PostReturn = z.object({
   idempotency_key: z.string().min(8).max(128).optional(),
 })
 export type PostReturn = z.infer<typeof PostReturn>
+
+const trackingNumber = z.string().trim().max(100)
+const httpUrl = z.string().trim().max(2048).refine((u) => u === "" || /^https?:\/\/\S+$/i.test(u), { message: "must be an http(s) URL" })
+
+export const PostShip = z.object({
+  /** Send Medusa's notifications (the shop's shipping mail) or not. */
+  notify: z.boolean(),
+  location_id: z.string().min(1).max(128).optional(),
+  /** The number of the package packed now, or of the only open package. Optional: a carrier integration may set its own. */
+  tracking_number: trackingNumber.optional(),
+  tracking_url: httpUrl.optional(),
+  /** Numbers for packages that exist already, by fulfillment id. */
+  numbers: z.record(z.string().min(1).max(128), trackingNumber).optional(),
+})
+export type PostShip = z.infer<typeof PostShip>

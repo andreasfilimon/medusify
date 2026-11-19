@@ -2,6 +2,41 @@
 
 All notable changes to Medusify. The plugin (`medusify`) and the app in `pwa/` share one version number.
 
+## 0.2.2 - 2026-11-19
+
+### Fixed
+
+- Shipping no longer leaves an order half done. The app used to make Medusa's two calls itself (pack, then ship); when
+  iOS put the app away between them, the order stayed packed but not shipped, and the customer got no mail. The new
+  plugin route `POST /admin/medusify/orders/:id/ship` does both on the server, under one lock per order. A repeat, a
+  double tap or a second phone finds the work done and changes nothing. A packed order left behind by an earlier try is
+  finished by the next one. The call ends after 45 seconds instead of keeping the form busy.
+- The label a carrier integration writes when the package is packed (number, tracking link) is kept. Medusa replaces the
+  labels of a fulfillment with the list in the shipment call, and the app sent only the typed number, or none.
+- Goods without shipping (a voucher, a download) are split from the parcel and marked as delivered, as Medusa requires.
+- The scanner reads the parcel number on labels with several codes. It took the first code of a frame, which on a GLS
+  label is a DataMatrix with address data; it now takes the 1D code (ITF, Code 128 …) and asks the camera for a sharper
+  picture. A number the user typed is no longer replaced by the camera. If the decoder fails to load, the camera closes.
+- An order with a delivered voucher and goods still to send counts as "to ship" in the app, the queue and the dashboard.
+  Medusa reports such an order as partially delivered, and its order list even as delivered; the line quantities decide
+  now.
+- The ship queue loads the next page when the first one holds nothing to ship, and says how many orders were skipped.
+  A shop whose page failed to load no longer ends the queue with "all shipped"; the queue shows the error with a retry.
+- A typed number goes on one package only. With several open packages and no number of their own, the shop answers
+  400 `medusify:numbers_required` and the form asks for a number per package. A number a package carries already stays
+  there, and the tracking link goes with the typed number only.
+- When the typed number found no package (all were shipped before, each with a number), the app says so instead of a
+  plain "done".
+- Goods with different shipping profiles are packed from the stock location of their own shipping option.
+- A carrier label keeps its `label_url`, also a relative one.
+
+### Changed
+
+- The tracking number is optional. Packages packed earlier show their carrier label, or get a field of their own.
+- The ship sheet cannot be closed while the request runs. A role without the right to ship sees why (`ship` in
+  `GET /admin/medusify/permissions`).
+- An app on a shop with an older plugin (no ship route) makes Medusa's calls itself, now with the labels kept.
+
 ## 0.2.1 - 2026-11-19
 
 ### Fixed

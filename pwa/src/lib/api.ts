@@ -21,7 +21,10 @@ export class ApiError extends Error {
  * - auth: the login ended.
  * - rejected: the shop answered and said no; its message (if any) is the reason.
  */
-export type ShipFailure = { kind: "unknown" } | { kind: "auth" } | { kind: "rejected"; reason?: string }
+export type ShipFailure = { kind: "unknown" } | { kind: "auth" } | { kind: "numbers" } | { kind: "rejected"; reason?: string }
+
+/** The plugin's refusal when one typed number would fit several packages (plugin/src/lib/ship.ts, NUMBERS_REQUIRED). */
+export const NUMBERS_REQUIRED = "medusify:numbers_required"
 
 export function shipFailure(err: unknown): ShipFailure {
   if (err instanceof ApiError) {
@@ -29,6 +32,7 @@ export function shipFailure(err: unknown): ShipFailure {
     // 409: the shop is still working on an earlier try with the same key (e.g. a refund in progress). It may still land.
     if (err.status === 409) return { kind: "unknown" }
     if (err.kind === "unauthorized") return { kind: "auth" }
+    if (err.message === NUMBERS_REQUIRED) return { kind: "numbers" }
     return { kind: "rejected", reason: err.message && err.message !== err.kind ? err.message : undefined }
   }
   return { kind: "unknown" }
@@ -253,7 +257,11 @@ export const ORDER_FIELDS = [
 /** What the choice of the stock location depends on. The list (LIST_FIELDS) has none of the shipping data. */
 const LOCATION_FIELDS = "id,sales_channel_id,*shipping_methods,*items,*items.detail,*fulfillments"
 
-const LIST_FIELDS = "id,display_id,status,created_at,email,currency_code,payment_status,fulfillment_status,total,*shipping_address,*items"
+/** The location fields and the labels of the fulfillments, for the ship form (`shipPlan`). */
+const PLAN_FIELDS = `${LOCATION_FIELDS},*fulfillments.labels`
+
+// The line details decide whether goods are left to send (orders.ts, unsentRest); Medusa's status alone hides them.
+const LIST_FIELDS = "id,display_id,status,created_at,email,currency_code,payment_status,fulfillment_status,total,*shipping_address,*items,*items.detail"
 
 export const PAGE_SIZE = 50
 
@@ -280,17 +288,102 @@ export async function getOrder(shop: Shop, id: string): Promise<Order> {
   return body.order
 }
 
-export type ShipInput = { tracking_number: string; tracking_url?: string; notify: boolean; location_id?: string }
+export type ShipInput = {
+  /** The number of the package packed now, or of the only package that is packed already. Optional: a carrier integration may set its own. */
+  tracking_number?: string
+  tracking_url?: string
+  notify: boolean
+  location_id?: string
+  /** Numbers for packages that were packed before (in the Medusa admin or by an earlier try), by fulfillment id. */
+  numbers?: Record<string, string>
+}
+
+/** How long the app waits for the ship call. iOS freezes a PWA in the background; a call without an end held the form busy for good. */
+export const SHIP_TIMEOUT_MS = 45_000
+
+function timeoutSignal(ms: number): AbortSignal | undefined {
+  if (typeof AbortSignal === "undefined") return undefined
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms)
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(), ms)
+  return controller.signal
+}
 
 /**
- * Ships every line that is not yet shipped. Two Admin API calls, so Medusa fires its normal events:
- * create the fulfillment, then the shipment with the label (tracking number).
- * Safe to run again after a failure in between: the order is read fresh, and a fulfillment that
- * exists but is not shipped yet is reused instead of creating a second one.
+ * Ships every line that is not yet shipped, in one request to the plugin (`POST /admin/medusify/orders/:id/ship`): the
+ * plugin creates the missing fulfillments and registers every shipment on the server, under one lock per order, and a
+ * repeat finds the work done. Before, the app made Medusa's two calls itself, and when iOS put the app away between them
+ * the order stayed packed but not shipped, without the customer's mail (live shop, 2026-11-19).
+ *
+ * A shop whose plugin is older has no such route (404); then the app makes Medusa's calls itself (`shipStepByStep`).
  */
-export async function shipOrder(shop: Shop, order: Order, input: ShipInput): Promise<void> {
+/** What the ship call did that the user should hear about: a typed number that went on no package. */
+export type ShipOutcome = { unusedNumber: boolean }
+
+export async function shipOrder(shop: Shop, order: Order, input: ShipInput): Promise<ShipOutcome> {
+  const numbers = Object.fromEntries(Object.entries(input.numbers ?? {}).map(([k, v]) => [k, cleanNumber(v)]).filter(([, v]) => v))
+  const body = {
+    notify: input.notify,
+    location_id: input.location_id,
+    tracking_number: cleanNumber(input.tracking_number) || undefined,
+    tracking_url: input.tracking_url?.trim() || undefined,
+    numbers: Object.keys(numbers).length ? numbers : undefined,
+  }
+  try {
+    const res = await shopFetch(shop, `/admin/medusify/orders/${encodeURIComponent(order.id)}/ship`, { method: "POST", body: JSON.stringify(body), signal: timeoutSignal(SHIP_TIMEOUT_MS) })
+    const result = await json<{ unused_tracking_number?: boolean }>(res).catch(() => ({}) as { unused_tracking_number?: boolean })
+    return { unusedNumber: result.unused_tracking_number === true }
+  } catch (e) {
+    // Only "no such route" leads to the old way; every other answer is the answer (an unknown order fails there again).
+    if (!(e instanceof ApiError && e.kind === "notfound")) throw e
+  }
+  return shipStepByStep(shop, order, { ...input, numbers })
+}
+
+const cleanNumber = (s: string | undefined) => (s ?? "").trim()
+
+type Label = { tracking_number: string; tracking_url: string; label_url: string }
+type LabelIn = { tracking_number?: string | null; tracking_url?: string | null; label_url?: string | null }
+
+const httpOrEmpty = (u: string | null | undefined) => (u && /^https?:\/\//i.test(u) ? u : "")
+
+/**
+ * The labels a fulfillment carries after its shipment (same rule as the plugin's `labelsFor`). Medusa replaces the
+ * labels with the list in the shipment call, so the labels a carrier integration wrote when the fulfillment was created
+ * go in again (measured: no list leaves none, a typed number leaves only that one). A typed number is added unless it is
+ * one of them. Medusa takes only http(s) URLs or "", and a carrier may store a relative path, so other values become "".
+ */
+export function labelsFor(existing: readonly LabelIn[] | undefined, typed?: { number?: string; url?: string }): Label[] {
+  const labels: Label[] = (existing ?? [])
+    .filter((l) => l.tracking_number)
+    .map((l) => ({ tracking_number: l.tracking_number!, tracking_url: httpOrEmpty(l.tracking_url), label_url: httpOrEmpty(l.label_url) }))
+  const number = typed?.number?.trim()
+  if (number && !labels.some((l) => l.tracking_number === number)) labels.push({ tracking_number: number, tracking_url: httpOrEmpty(typed?.url), label_url: "" })
+  return labels
+}
+
+/**
+ * Which package the typed number belongs to (same rule as the plugin's `mainNumberTarget`): the one packed now, or with
+ * nothing packed now the only one waiting; packages with a number of their own do not count. With several candidates the
+ * number fits none for sure, and the user is asked for one number per package.
+ */
+export function mainNumberTarget(open: readonly string[], created: ReadonlySet<string>, numbers: Readonly<Record<string, string>> | undefined): { target?: string; ambiguous: boolean } {
+  const packedNow = open.filter((id) => created.has(id))
+  const pool = packedNow.length > 0 ? packedNow : [...open]
+  const candidates = pool.filter((id) => !numbers?.[id])
+  if (candidates.length === 1) return { target: candidates[0], ambiguous: false }
+  return { ambiguous: candidates.length > 1 }
+}
+
+/**
+ * The old way, for a plugin without the ship route: Medusa's two Admin API calls, create the fulfillment, then the
+ * shipment of every open fulfillment. Safe to run again: the order is read fresh, an open fulfillment is reused, and an
+ * order with nothing left to ship counts as done (a repeat after a lost answer).
+ */
+async function shipStepByStep(shop: Shop, order: Order, input: ShipInput): Promise<ShipOutcome> {
   const id = encodeURIComponent(order.id)
   let current = await getOrder(shop, order.id)
+  const before = new Set((current.fulfillments ?? []).map((f) => f.id))
   const toFulfill = remainingItems(current)
   if (toFulfill.length > 0) {
     const location = input.location_id ?? (await locationsOf(shop, current))[0]!.id
@@ -298,15 +391,53 @@ export async function shipOrder(shop: Shop, order: Order, input: ShipInput): Pro
     // The response does not list the new fulfillment reliably; read it back.
     current = await getOrder(shop, order.id)
   }
+  const created = new Set((current.fulfillments ?? []).map((f) => f.id).filter((f) => !before.has(f)))
   const shipments = shipmentsToCreate(current)
-  if (shipments.length === 0) throw new ApiError("rejected", 0, "nothing left to ship")
+  const byId = new Map((current.fulfillments ?? []).map((f) => [f.id, f]))
+  const typedMain = input.tracking_number?.trim() || undefined
+  // Same rules as the plugin: a number a package carries already stays there, the link goes with the typed number only.
+  const holder = typedMain ? (current.fulfillments ?? []).find((f) => !f.canceled_at && (f.labels ?? []).some((l) => l.tracking_number === typedMain)) : undefined
+  const main = holder
+    ? { target: shipments.some((x) => x.fulfillment_id === holder.id) ? holder.id : undefined, ambiguous: false }
+    : mainNumberTarget(shipments.map((x) => x.fulfillment_id), created, input.numbers)
+  if (typedMain && main.ambiguous) throw new ApiError("rejected", 400, NUMBERS_REQUIRED)
   for (const shipment of shipments) {
+    const own = input.numbers?.[shipment.fulfillment_id]
+    const typed = own ? { number: own } : shipment.fulfillment_id === main.target ? { number: typedMain, url: input.tracking_url } : {}
     await post(shop, `/admin/orders/${id}/fulfillments/${encodeURIComponent(shipment.fulfillment_id)}/shipments`, {
       items: shipment.items,
-      labels: [{ tracking_number: input.tracking_number, tracking_url: input.tracking_url ?? "", label_url: "" }],
+      labels: labelsFor(byId.get(shipment.fulfillment_id)?.labels, typed),
       no_notification: !input.notify,
     })
   }
+  return { unusedNumber: !!typedMain && !holder && !main.target }
+}
+
+/** A package that is packed but not shipped, as the ship form shows it. */
+export type OpenPackage = { id: string; labels: string[] }
+
+export type ShipPlan = {
+  locations: FulfillmentLocation[]
+  /** True when lines are left to pack: the ship call packs them into a new package, and the main number belongs to it. */
+  packsNew: boolean
+  /** Packages packed earlier that still wait for their shipment (only goods to ship; a voucher has no parcel). */
+  packages: OpenPackage[]
+}
+
+/**
+ * What the ship form needs to know, from one read of the order: where the goods leave from, whether a new package is
+ * packed, and the packages packed earlier with the numbers a carrier integration gave them.
+ */
+export async function shipPlan(shop: Shop, order: Pick<Order, "id">): Promise<ShipPlan> {
+  const body = await json<{ order: Order }>(await shopFetch(shop, `/admin/orders/${encodeURIComponent(order.id)}?fields=${encodeURIComponent(PLAN_FIELDS)}`))
+  const o = body.order
+  const packages = (o.fulfillments ?? [])
+    .filter((f) => !f.shipped_at && !f.canceled_at && !f.delivered_at && f.requires_shipping !== false)
+    .map((f) => ({ id: f.id, labels: (f.labels ?? []).map((l) => l.tracking_number ?? "").filter(Boolean) }))
+  // Only goods to ship make a new parcel; a voucher left to fulfill does not (it is marked as delivered).
+  const shipping = new Set((o.items ?? []).filter((i) => i.requires_shipping !== false).map((i) => i.id))
+  const packsNew = remainingItems(o).some((r) => shipping.has(r.id))
+  return { locations: await locationsOf(shop, o), packsNew, packages }
 }
 
 type Shipment = { fulfillment_id: string; items: { id: string; quantity: number }[] }

@@ -118,8 +118,8 @@ runner({
 
       describe("the app's actions (permissions and the return route)", () => {
         const RETURN_RIGHTS = ["return:create", "return:update", "order:update"]
-        const ALL = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true }
-        const NONE = { capture: false, mark_paid: false, cancel: false, cancel_refunding: false, deliver: false, refund: false, return: false }
+        const ALL = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true }
+        const NONE = { capture: false, mark_paid: false, cancel: false, cancel_refunding: false, deliver: false, refund: false, return: false, ship: false }
         const actionsOf = async (who: { headers: Record<string, string> }) =>
           (await api.get("/admin/medusify/permissions", { headers: who.headers })).data.actions
 
@@ -138,6 +138,8 @@ runner({
             ["return", RETURN_RIGHTS, { return: true, cancel: true }],
             ["half of capture (no order:update)", ["capture:create"], {}],
             ["half of return (no return:create)", ["return:update", "order:update"], { cancel: true }],
+            ["ship", ["fulfillment:create", "fulfillment:update", "order:update"], { ship: true, deliver: true, cancel: true }],
+            ["half of ship (no fulfillment:create)", ["fulfillment:update", "order:update"], { deliver: true, cancel: true }],
           ]
           for (const [n, [name, keys, on]] of cases.entries()) {
             const who = await createAdmin(getContainer(), `case${n}@example.invalid`)
@@ -211,6 +213,9 @@ runner({
           const withRefund = await createAdmin(getContainer(), "withrefund@example.invalid")
           await giveRole(withRefund.userId, "returns-and-refunds", [...RETURN_RIGHTS, "refund:create"])
           const { orderId, itemId } = await fulfilledOrder()
+          // The ship route asks for the same rights: a reader and a user without a role are refused before anything is written.
+          await expect(api.post(`/admin/medusify/orders/${orderId}/ship`, { notify: false }, { headers: reader.headers })).rejects.toMatchObject({ response: { status: 403 } })
+          await expect(api.post(`/admin/medusify/orders/${orderId}/ship`, { notify: false }, { headers: withReturn.headers })).rejects.toMatchObject({ response: { status: 403 } })
           const body = (extra: Record<string, unknown> = {}) => ({ order_id: orderId, items: [{ id: itemId, quantity: 1 }], ...extra })
 
           await expect(api.post("/admin/medusify/returns", body(), { headers: reader.headers })).rejects.toMatchObject({ response: { status: 403 } })

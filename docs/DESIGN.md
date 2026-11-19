@@ -16,7 +16,7 @@ in `tokens.css` or in this file is not in `tokens.json`. The app itself reads it
 - **Reference.** The iOS 26 system apps Mail, Wallet and Weather for the form language, Things 3 for calm. Grouped inset
   lists on a gray background, large titles that shrink into the bar, controls that float above the content on a
   translucent material, springs instead of fixed curves. Familiarity is the quality bar for an app that people use daily.
-  The identity stays: one petrol tint, quiet/loud, shop monograms. Calm means few moving parts: no tips, no cards with
+  The identity stays: one blue tint (Medusa's interactive blue), quiet/loud, shop monograms. Calm means few moving parts: no tips, no cards with
   numbers, no tracking.
 - **Material.** Glass only for the control layer: navigation bar, tab capsule, dock, sheets, toast. Never on content
   (rows, groups, text) and never as decoration. Lightness and contrast are measured against the worst background
@@ -26,7 +26,7 @@ in `tokens.css` or in this file is not in `tokens.json`. The app itself reads it
   changed digits roll in. Only `transform` and `opacity` animate. Every motion has a fallback and a reduced-motion
   version (see Motion and gestures).
 - **Type.** System font stack (`-apple-system, system-ui, sans-serif`). No web font file.
-- **Color.** Cool neutrals plus one petrol tint. Status is always text plus a symbol, never color alone.
+- **Color.** Cool neutrals plus one blue tint. Status is always text plus a symbol, never color alone.
 - **Density.** Medium. Rows are 56 px with two lines of text, page margins are 16 px.
 - **Where the identity sits.** In data and attribution, not in chrome: a shop switcher in the navigation bar, a
   monogram per shop, and a quiet/loud split. Done is quiet (gray, check mark), open is loud (amber "To ship"). On the
@@ -94,9 +94,9 @@ inverted light one.
 | `--label-3` | `#5D6872` | `#8B959D` | Placeholders, timestamps, footnotes |
 | `--separator` | `#D9DDE2` | `#2A3036` | Hairlines between rows (decorative) |
 | `--border-input` | `#8A949D` | `#6B767F` | Border of input fields (control, at least 3:1) |
-| `--tint` | `#0A6A86` | `#4DC4E2` | The one accent color: actions, selection, focus |
-| `--tint-ink` | `#FFFFFF` | `#03212B` | Text and icons on a filled tint surface |
-| `--tint-soft` | `#E1F1F6` | `#0F2D36` | Softly tinted background (shipping band, selection) |
+| `--tint` | `#1D4ED8` | `#60A5FA` | The one accent color: actions, selection, focus |
+| `--tint-ink` | `#FFFFFF` | `#0B1A33` | Text and icons on a filled tint surface |
+| `--tint-soft` | `#EDF2FE` | `#12223B` | Softly tinted background (shipping band, selection) |
 | `--warn-ink` | `#8A4B00` | `#FFC76B` | Status "To ship", text |
 | `--warn-bg` | `#FFF1D6` | `#3A2A0C` | Status "To ship", background |
 | `--danger` | `#C0271F` | `#FF8A80` | Errors and refunds, text and fill |
@@ -138,11 +138,11 @@ is not verified on a device.
 | Placeholder, time on row | `label-3` on `surface` | 4.5 | 5.69 ✓ | 5.84 ✓ |
 | Footnote on page background | `label-3` on `bg` | 4.5 | 5.13 ✓ | 6.42 ✓ |
 | Placeholder in search field | `label-3` on `surface-2` | 4.5 | 4.72 ✓ | 4.68 ✓ |
-| Link or action on row | `tint` on `surface` | 4.5 | 6.14 ✓ | 8.75 ✓ |
-| Link or action on page background | `tint` on `bg` | 4.5 | 5.53 ✓ | 9.62 ✓ |
-| Label on filled primary button | `tint-ink` on `tint` | 4.5 | 6.14 ✓ | 8.21 ✓ |
-| Text in shipping band | `tint` on `tint-soft` | 4.5 | 5.30 ✓ | 7.12 ✓ |
-| Primary text in shipping band | `label` on `tint-soft` | 4.5 | 15.24 ✓ | 13.25 ✓ |
+| Link or action on row | `tint` on `surface` | 4.5 | 6.70 ✓ | 7.01 ✓ |
+| Link or action on page background | `tint` on `bg` | 4.5 | 6.04 ✓ | 7.71 ✓ |
+| Label on filled primary button | `tint-ink` on `tint` | 4.5 | 6.70 ✓ | 6.83 ✓ |
+| Text in shipping band | `tint` on `tint-soft` | 4.5 | 5.98 ✓ | 6.27 ✓ |
+| Primary text in shipping band | `label` on `tint-soft` | 4.5 | 15.76 ✓ | 14.57 ✓ |
 | Status "To ship" | `warn-ink` on `warn-bg` | 4.5 | 6.09 ✓ | 8.99 ✓ |
 | Status "Shipped" | `neutral-ink` on `neutral-bg` | 4.5 | 6.41 ✓ | 7.49 ✓ |
 | Status "Canceled/Error" | `danger-ink` on `danger-bg` | 4.5 | 5.67 ✓ | 7.07 ✓ |
@@ -156,14 +156,14 @@ is not verified on a device.
 | Monogram steel blue | `mono-ink` on `shop-6` | 4.5 | 6.52 ✓ | 6.52 ✓ |
 | Primary text in sheet | `label` on `sheet` | 4.5 | 15.91 ✓ | 15.16 ✓ |
 | Field label in sheet | `label-2` on `sheet` | 4.5 | 5.79 ✓ | 7.26 ✓ |
-| Cancel in sheet | `tint` on `sheet` | 4.5 | 5.53 ✓ | 8.14 ✓ |
+| Cancel in sheet | `tint` on `sheet` | 4.5 | 6.04 ✓ | 6.52 ✓ |
 | Input in sheet | `label` on `sheet-field` | 4.5 | 17.67 ✓ | 17.92 ✓ |
 | Input border in a sheet (non-text) | `border-input` on `sheet-field` | 3 | 3.09 ✓ | 4.22 ✓ |
 | Selected segment | `label` on `seg-thumb` | 4.5 | 17.67 ✓ | 9.33 ✓ |
 | Hint text in camera viewfinder | `camera-ink` on `camera` | 4.5 | 18.82 ✓ | 18.82 ✓ |
 | Input border (non-text, WCAG 1.4.11) | `border-input` on `surface` | 3 | 3.09 ✓ | 3.84 ✓ |
-| Focus ring on row (non-text) | `tint` on `surface` | 3 | 6.14 ✓ | 8.75 ✓ |
-| Focus ring on page background (non-text) | `tint` on `bg` | 3 | 5.53 ✓ | 9.62 ✓ |
+| Focus ring on row (non-text) | `tint` on `surface` | 3 | 6.70 ✓ | 7.01 ✓ |
+| Focus ring on page background (non-text) | `tint` on `bg` | 3 | 6.04 ✓ | 7.71 ✓ |
 <!-- /GEN:contrast -->
 
 ### Material
@@ -175,7 +175,7 @@ Material = `--sheet` at 93 % (light) and 88 % (dark) over the worst case: a soli
 |---|---|---|---|---|
 | Primary text on material | `label` on material over `label` | 4.5 | 13.89 ✓ (rgb 227 228 230) | 10.66 ✓ (rgb 53 57 60) |
 | Tab label and subtitle on material | `label-2` on material over `label` | 4.5 | 5.05 ✓ (rgb 227 228 230) | 5.11 ✓ (rgb 53 57 60) |
-| Action text on material | `tint` on material over `label` | 4.5 | 4.83 ✓ (rgb 227 228 230) | 5.72 ✓ (rgb 53 57 60) |
+| Action text on material | `tint` on material over `label` | 4.5 | 5.27 ✓ (rgb 227 228 230) | 4.58 ✓ (rgb 53 57 60) |
 | Error text on material | `danger` on material over `label` | 4.5 | 4.65 ✓ (rgb 227 228 230) | 5.11 ✓ (rgb 53 57 60) |
 <!-- /GEN:material -->
 
@@ -186,8 +186,8 @@ Where the screen shows Display P3 (`@media (color-gamut: p3)`), these tokens get
 
 | Token | Light: sRGB → P3 | Dark: sRGB → P3 |
 |---|---|---|
-| `--tint` | `#0A6A86` → `color(display-p3 0.1122 0.4125 0.5403)` (chroma × 1.20) | `#4DC4E2` → `color(display-p3 0.3565 0.7656 0.9038)` (chroma × 1.20) |
-| `--tint-soft` | `#E1F1F6` → `color(display-p3 0.8858 0.9449 0.9676)` (chroma × 1.20) | `#0F2D36` → `color(display-p3 0.0710 0.1756 0.2168)` (chroma × 1.20) |
+| `--tint` | `#1D4ED8` → `color(display-p3 0.1251 0.2631 0.9127)` (chroma × 1.20) | `#60A5FA` → `color(display-p3 0.4088 0.6377 0.9988)` (chroma × 1.14) |
+| `--tint-soft` | `#EDF2FE` → `color(display-p3 0.9300 0.9483 0.9998)` (chroma × 1.19) | `#12223B` → `color(display-p3 0.0742 0.1301 0.2422)` (chroma × 1.20) |
 | `--danger-fill` | `#C0271F` → `color(display-p3 0.7459 0.1161 0.0837)` (chroma × 1.20) | `#D92D20` → `color(display-p3 0.8432 0.1343 0.0757)` (chroma × 1.20) |
 | `--danger` | `#C0271F` → `color(display-p3 0.7459 0.1161 0.0837)` (chroma × 1.20) | `#FF8A80` → `color(display-p3 0.9876 0.5350 0.4857)` (chroma × 1.20) |
 
@@ -195,16 +195,16 @@ Contrast of the pairs that use them, measured with the P3 luminance:
 
 | Pair | Tokens | Required | Light | Dark |
 |---|---|---|---|---|
-| Link or action on row | `tint` on `surface` | 4.5 | 6.14 ✓ | 8.75 ✓ |
-| Link or action on page background | `tint` on `bg` | 4.5 | 5.53 ✓ | 9.62 ✓ |
-| Label on filled primary button | `tint-ink` on `tint` | 4.5 | 6.14 ✓ | 8.21 ✓ |
-| Text in shipping band | `tint` on `tint-soft` | 4.5 | 5.30 ✓ | 7.12 ✓ |
-| Primary text in shipping band | `label` on `tint-soft` | 4.5 | 15.24 ✓ | 13.25 ✓ |
+| Link or action on row | `tint` on `surface` | 4.5 | 6.70 ✓ | 7.01 ✓ |
+| Link or action on page background | `tint` on `bg` | 4.5 | 6.04 ✓ | 7.71 ✓ |
+| Label on filled primary button | `tint-ink` on `tint` | 4.5 | 6.70 ✓ | 6.83 ✓ |
+| Text in shipping band | `tint` on `tint-soft` | 4.5 | 5.98 ✓ | 6.27 ✓ |
+| Primary text in shipping band | `label` on `tint-soft` | 4.5 | 15.76 ✓ | 14.57 ✓ |
 | Error text or refund on row | `danger` on `surface` | 4.5 | 5.91 ✓ | 7.81 ✓ |
 | Label on filled refund button | `danger-on` on `danger-fill` | 4.5 | 5.91 ✓ | 4.83 ✓ |
-| Cancel in sheet | `tint` on `sheet` | 4.5 | 5.53 ✓ | 8.14 ✓ |
-| Focus ring on row (non-text) | `tint` on `surface` | 3 | 6.14 ✓ | 8.75 ✓ |
-| Focus ring on page background (non-text) | `tint` on `bg` | 3 | 5.53 ✓ | 9.62 ✓ |
+| Cancel in sheet | `tint` on `sheet` | 4.5 | 6.04 ✓ | 6.52 ✓ |
+| Focus ring on row (non-text) | `tint` on `surface` | 3 | 6.70 ✓ | 7.01 ✓ |
+| Focus ring on page background (non-text) | `tint` on `bg` | 3 | 6.04 ✓ | 7.71 ✓ |
 <!-- /GEN:p3 -->
 
 ## Spacing, radii, shadow, motion, sizes

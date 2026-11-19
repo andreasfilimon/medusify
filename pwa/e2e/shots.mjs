@@ -90,7 +90,7 @@ for (const scheme of ["light", "dark"]) {
   await shot("11e-cancel")
 
   await page.goto("ship")
-  await page.getByLabel("Sendungsnummer", { exact: true }).waitFor()
+  await page.getByLabel("Sendungsnummer (optional)", { exact: true }).waitFor()
   await shot("06-ship")
 
   // Several stock locations: the form asks where the goods leave from (stubbed list, the dev shop has one).
@@ -103,13 +103,13 @@ for (const scheme of ["light", "dark"]) {
   await page.unroute("**/admin/stock-locations?*")
 
   // Lost connection while shipping: the text says it is not known whether the shipment exists.
-  await page.route("**/admin/orders/*/fulfillments", (r) => r.abort("connectionfailed"))
+  await page.route("**/admin/medusify/orders/*/ship", (r) => r.abort("connectionfailed"))
   await page.goto("ship")
-  await page.getByLabel("Sendungsnummer", { exact: true }).fill("RR000000000AT")
+  await page.getByLabel("Sendungsnummer (optional)", { exact: true }).fill("RR000000000AT")
   await page.getByRole("button", { name: "Als versendet markieren" }).click()
   await page.getByText("Keine Antwort vom Shop").waitFor()
   await shot("06c-ship-no-answer")
-  await page.unroute("**/admin/orders/*/fulfillments")
+  await page.unroute("**/admin/medusify/orders/*/ship")
 
   await page.goto("more")
   await page.getByRole("heading", { name: "Mehr" }).first().waitFor()

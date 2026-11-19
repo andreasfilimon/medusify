@@ -48,7 +48,7 @@ test.describe("iPhone journey", () => {
 
       await page.goto("")
       await page.getByRole("link", { name: "Versand starten" }).click()
-      await page.getByLabel("Sendungsnummer", { exact: true }).fill(tracking)
+      await page.getByLabel("Sendungsnummer (optional)", { exact: true }).fill(tracking)
       await page.getByRole("button", { name: "Als versendet markieren" }).click()
       await expect(page.getByText("Versendet", { exact: true }).first()).toBeVisible()
 

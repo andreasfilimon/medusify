@@ -292,6 +292,8 @@ button.row, a.row { text-align: left; }
 .field-error { display: flex; align-items: flex-start; gap: 6px; margin-top: var(--space-2); color: var(--danger); font-size: var(--fs-footnote); line-height: var(--lh-footnote); }
 .field-error .ic { margin-top: 2px; }
 .help.bad { color: var(--danger); }
+/* Notes under a field that sit outside .field (ship form: no number, carrier label): same voice as .field .help. */
+.help.ship-labels { margin: 6px 0 0; font-size: var(--fs-footnote); line-height: var(--lh-footnote); color: var(--label-2); }
 .field input[aria-invalid="true"] { border-color: var(--danger); }
 .sheet .form, .queue-form .form { padding: 0; }
 .sheet-text { padding: var(--space-2) 0 var(--space-4); font-size: var(--fs-subhead); color: var(--label-2); }

@@ -2,6 +2,16 @@
 
 All notable changes to Medusify. The plugin (`medusify`) and the app in `pwa/` share one version number.
 
+## 0.2.3 - 2026-11-19
+
+### Changed
+
+- New logo: a rounded hexagon ring whose roof lifts off the base (headless, built on Medusa). App icon, maskable icon,
+  apple-touch-icon and favicon are new; the favicon uses a small cut that stays readable at 16 px. Source and rules in
+  `docs/logo/`.
+- The app's accent is Medusa's blue instead of petrol (`#1D4ED8` light, `#60A5FA` dark), so the app sits next to the
+  Medusa admin as one family. All 34 contrast pairs pass WCAG AA in light and dark mode, also on the translucent bars.
+
 ## 0.2.2 - 2026-11-19
 
 ### Fixed

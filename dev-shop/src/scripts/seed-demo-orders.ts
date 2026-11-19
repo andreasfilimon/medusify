@@ -95,7 +95,9 @@ export default async function seedDemoOrders({ container }: ExecArgs) {
         sales_channel_id: channels[0].id,
         email: `${first}.${last}@example.invalid`.toLowerCase(),
         metadata: { [MARK]: true },
-        items: d.items,
+        // Goods to post: without the flag a custom line counts as not needing shipping (like a voucher), and a
+        // shipment marks it delivered instead of shipped (measured 2026-11-19).
+        items: d.items.map((i) => ({ ...i, requires_shipping: true })),
         shipping_methods: [
           d.currency === "eur"
             ? { name: "Standard Shipping", amount: d.shipping, shipping_option_id: standard.id }

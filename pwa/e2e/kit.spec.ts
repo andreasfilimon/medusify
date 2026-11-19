@@ -63,7 +63,11 @@ test("a kit order in two open fulfillments ships completely from the order scree
 
   await page.goto(`orders/${orderId}`)
   await page.getByRole("button", { name: "Versenden", exact: true }).click()
-  await page.getByLabel("Sendungsnummer", { exact: true }).fill(`RR${String(Date.now()).slice(-9)}AT`)
+  // Two packages packed in the admin and nothing new to pack: the form asks for a number per package (a typed number
+  // goes on one package only), and both are shipped in one go.
+  const base = String(Date.now()).slice(-8)
+  await page.getByLabel("Sendungsnummer Paket 1 (schon verpackt, optional)").fill(`RR${base}1AT`)
+  await page.getByLabel("Sendungsnummer Paket 2 (schon verpackt, optional)").fill(`RR${base}2AT`)
   await page.getByRole("button", { name: "Als versendet markieren" }).click()
   await expect(page.getByText("Versendet", { exact: true }).first()).toBeVisible()
 

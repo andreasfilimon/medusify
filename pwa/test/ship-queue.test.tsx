@@ -8,6 +8,8 @@ const home = shop("a", { home: true })
 
 vi.mock("../src/lib/scan", () => ({ startScan: async () => ({ kind: "no-camera" }) }))
 vi.mock("../src/ui/Icon", () => ({ Icon: () => null }))
+const toastShow = vi.fn()
+vi.mock("../src/ui/Toast", async (orig) => ({ ...(await orig<typeof import("../src/ui/Toast")>()), useToast: () => ({ show: toastShow }) }))
 vi.mock("../src/app/context", () => ({ useApp: () => ({ t: makeT("de"), online: true, scoped: [home], shops: [home] }) }))
 
 const { ShipQueue } = await import("../src/screens/ShipQueue")
@@ -165,3 +167,35 @@ describe("ship queue paging and skipping", () => {
     expect(calls.filter((c) => c.path.startsWith("/admin/orders?")).length).toBe(2)
   })
 })
+
+describe("ship queue with the ship route", () => {
+  it("says \"Versendet\" after shipping, also when the queue moves on to the next order at once", async () => {
+    // Found in the browser test: the toast never came, the queue jumped to the next order.
+    toastShow.mockReset()
+    calls = []
+    let shipped = false
+    const second = { ...listed, id: "o2", display_id: 2 }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit = {}) => {
+        const path = url.replace("https://a", "")
+        const method = init.method ?? "GET"
+        calls.push({ path, method })
+        const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 })
+        if (method === "POST" && path.includes("/medusify/orders/o1/ship")) {
+          shipped = true
+          return ok({ order_id: "o1", shipped: [{ fulfillment_id: "ful_1", tracking_numbers: ["AT123456789"] }], delivered: [], nothing_to_do: false, unused_tracking_number: false })
+        }
+        if (path.startsWith("/admin/orders?")) return ok({ orders: shipped ? [second] : [listed, second], count: shipped ? 1 : 2 })
+        if (path.startsWith("/admin/orders/")) return ok({ order: { ...order(path.includes("/o2?") ? "o2" : "o1"), items: line(0), fulfillments: [], shipping_methods: [] } })
+        if (path.startsWith("/admin/medusify/permissions")) return ok({ ship: true })
+        if (path.startsWith("/admin/stock-locations")) return ok({ stock_locations: [{ id: "sloc_wien", name: "Wien" }] })
+        return ok({})
+      }),
+    )
+    renderQueue()
+    await submit()
+    await waitFor(() => expect(toastShow).toHaveBeenCalledWith("Versendet"))
+  })
+})
+

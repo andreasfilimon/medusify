@@ -9,9 +9,9 @@
   --label-3: #5D6872;
   --separator: #D9DDE2;
   --border-input: #8A949D;
-  --tint: #0A6A86;
+  --tint: #1D4ED8;
   --tint-ink: #FFFFFF;
-  --tint-soft: #E1F1F6;
+  --tint-soft: #EDF2FE;
   --warn-ink: #8A4B00;
   --warn-bg: #FFF1D6;
   --danger: #C0271F;
@@ -110,9 +110,9 @@
     --label-3: #8B959D;
     --separator: #2A3036;
     --border-input: #6B767F;
-    --tint: #4DC4E2;
-    --tint-ink: #03212B;
-    --tint-soft: #0F2D36;
+    --tint: #60A5FA;
+    --tint-ink: #0B1A33;
+    --tint-soft: #12223B;
     --warn-ink: #FFC76B;
     --warn-bg: #3A2A0C;
     --danger: #FF8A80;
@@ -152,9 +152,9 @@
   --label-3: #8B959D;
   --separator: #2A3036;
   --border-input: #6B767F;
-  --tint: #4DC4E2;
-  --tint-ink: #03212B;
-  --tint-soft: #0F2D36;
+  --tint: #60A5FA;
+  --tint-ink: #0B1A33;
+  --tint-soft: #12223B;
   --warn-ink: #FFC76B;
   --warn-bg: #3A2A0C;
   --danger: #FF8A80;
@@ -210,22 +210,22 @@
 @supports (color: color(display-p3 1 1 1)) {
   @media (color-gamut: p3) {
     :root {
-      --tint: color(display-p3 0.1122 0.4125 0.5403);
-      --tint-soft: color(display-p3 0.8858 0.9449 0.9676);
+      --tint: color(display-p3 0.1251 0.2631 0.9127);
+      --tint-soft: color(display-p3 0.9300 0.9483 0.9998);
       --danger-fill: color(display-p3 0.7459 0.1161 0.0837);
       --danger: color(display-p3 0.7459 0.1161 0.0837);
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        --tint: color(display-p3 0.3565 0.7656 0.9038);
-        --tint-soft: color(display-p3 0.0710 0.1756 0.2168);
+        --tint: color(display-p3 0.4088 0.6377 0.9988);
+        --tint-soft: color(display-p3 0.0742 0.1301 0.2422);
         --danger-fill: color(display-p3 0.8432 0.1343 0.0757);
         --danger: color(display-p3 0.9876 0.5350 0.4857);
       }
     }
     :root[data-theme="dark"] {
-      --tint: color(display-p3 0.3565 0.7656 0.9038);
-      --tint-soft: color(display-p3 0.0710 0.1756 0.2168);
+      --tint: color(display-p3 0.4088 0.6377 0.9988);
+      --tint-soft: color(display-p3 0.0742 0.1301 0.2422);
       --danger-fill: color(display-p3 0.8432 0.1343 0.0757);
       --danger: color(display-p3 0.9876 0.5350 0.4857);
     }

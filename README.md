@@ -1,3 +1,5 @@
+<img src="docs/logo/medusify-kachel-dunkel.svg" alt="" width="72">
+
 # Medusify
 
 An installable web app for Medusa v2 shops. It shows orders and revenue, creates shipments with a tracking number

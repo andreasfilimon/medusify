@@ -42,6 +42,11 @@ cd plugin && ./scripts/run-tests.sh
 Use `docker` instead of `podman` if you prefer. The script reads `DB_PORT`, `DB_PASSWORD` and `REDIS_URL` from the
 environment if your ports differ. Remove the containers when you are done.
 
+**Other Medusa versions.** The plugin supports a range of Medusa versions, and CI runs the plugin job on the oldest and
+the newest. With the containers above running, `plugin/scripts/test-medusa-versions.sh` repeats that on your machine
+for 2.22.1; pass other versions or `newest` as arguments. A change that uses a Medusa export which an older version
+lacks has to read it from the module namespace (see `plugin/src/lib/authorize-compat.ts`), and the run shows when it does not.
+
 **End-to-end tests** run against the dev shop, which serves the packed plugin:
 
 ```bash

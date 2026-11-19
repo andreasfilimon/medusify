@@ -14,10 +14,10 @@ export default defineConfig({
   outputDir: "test-results",
   use: { baseURL: `${base}/medusify/`, locale: "de-AT", timezoneId: "Europe/Vienna", trace: "retain-on-failure" },
   projects: [
-    { name: "webkit", testMatch: /(app|google|csp|kit)\.spec\.ts/, use: { ...devices["iPhone 15"] } },
+    { name: "webkit", testMatch: /(app|actions|lost-answer|google|csp|kit)\.spec\.ts/, use: { ...devices["iPhone 15"] } },
     {
       name: "chromium",
-      testMatch: /(sw|push|csp)\.spec\.ts/,
+      testMatch: /(sw|push|csp|gestures)\.spec\.ts/,
       // A fake camera, so the barcode scanner starts without a device.
       use: {
         ...devices["Pixel 7"],

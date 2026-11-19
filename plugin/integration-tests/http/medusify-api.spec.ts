@@ -173,6 +173,8 @@ medusaIntegrationTestRunner({
           expect(res.status).toBe(200)
           const d = res.data
           expect(d.timezone).toBe("Europe/Vienna")
+          expect(typeof d.shop_label).toBe("string") // the name push titles carry, so the app can match a push to this shop
+          expect(d.shop_label.length).toBeGreaterThan(0)
           expect(d.today.orders).toBe(2) // the unpaid order is not counted
           expect(d.today.revenue).toEqual([
             { currency_code: "eur", amount: 44.98 }, // only the paid order, exact, no float drift

@@ -4,6 +4,7 @@ import { MEDUSIFY_PUSH_MODULE } from "../constants"
 import type { MedusifyPushModuleService } from "../modules/medusify-push"
 import type { SendResult } from "../modules/medusify-push/types"
 import { toNumber } from "./bignum"
+import { countToShipSafe } from "./to-ship"
 import { buildOrderPlacedPayload } from "./format"
 import { canReadOrders } from "./rbac"
 
@@ -45,6 +46,7 @@ export async function notifyOrderPlaced(
     amount: toNumber(order.summary?.current_order_total),
     currencyCode: order.currency_code,
     itemCount,
+    toShip: await countToShipSafe(container),
   })
   // Only admins who may read orders (Medusa RBAC) get the message; without the RBAC module this is everyone.
   return service.sendToAll(payload, (userId) => canReadOrders(container, userId))

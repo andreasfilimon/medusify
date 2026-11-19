@@ -33,6 +33,8 @@ export type DashboardOrder = {
 }
 
 export type Dashboard = {
+  /** The shop's label as the plugin writes it into push titles. Lets the service worker match a push to a shop. */
+  shop_label?: string
   timezone: string
   generated_at: string
   today: { orders: number; revenue: Money[] }
@@ -50,7 +52,13 @@ export type OrderItem = {
   unit_price: number
   total: number
   thumbnail?: string | null
-  detail?: { fulfilled_quantity?: number; shipped_quantity?: number }
+  detail?: {
+    fulfilled_quantity?: number
+    shipped_quantity?: number
+    return_requested_quantity?: number
+    return_received_quantity?: number
+    return_dismissed_quantity?: number
+  }
   /** Only the inventory links are read, for the quantity of a kit line in a fulfillment. `null` when the variant was deleted. */
   variant?: { inventory_items?: { inventory_item_id?: string | null; required_quantity?: number | null }[] } | null
 }
@@ -67,6 +75,18 @@ export type Address = {
   country_code?: string | null
   phone?: string | null
 }
+
+export type Payment = {
+  id: string
+  provider_id?: string
+  captured_at?: string | null
+  canceled_at?: string | null
+  amount?: number
+  captures?: { amount?: number }[] | null
+  refunds?: { amount?: number }[] | null
+}
+
+export type PaymentCollection = { id: string; status?: string; payments?: Payment[] }
 
 export type Order = {
   id: string
@@ -90,12 +110,13 @@ export type Order = {
     id: string
     created_at?: string
     shipped_at?: string | null
+    delivered_at?: string | null
     canceled_at?: string | null
     location_id?: string | null
     items?: { line_item_id: string; inventory_item_id?: string | null; quantity: number }[]
     labels?: { tracking_number?: string | null; tracking_url?: string | null }[]
   }[]
-  payment_collections?: { status?: string; payments?: { provider_id?: string; captured_at?: string | null; amount?: number }[] }[]
+  payment_collections?: PaymentCollection[]
 }
 
 /** An order together with the shop it came from. The list in "Alle Shops" is a list of these. */

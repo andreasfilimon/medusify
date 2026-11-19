@@ -13,8 +13,18 @@ in `tokens.css` or in this file is not in `tokens.json`. The app itself reads it
 
 - **Use.** One hand, thumb at the bottom, a session of under a minute, often right after a push notification. Light
   and dark mode are equal. Everything that matters sits in the lower half of the screen.
-- **Reference.** The iOS system apps, mainly Mail and Wallet: grouped inset lists on a gray background, large titles,
-  hairlines instead of borders, one tint color. Familiarity is the quality bar for an app that people use daily.
+- **Reference.** The iOS 26 system apps Mail, Wallet and Weather for the form language, Things 3 for calm. Grouped inset
+  lists on a gray background, large titles that shrink into the bar, controls that float above the content on a
+  translucent material, springs instead of fixed curves. Familiarity is the quality bar for an app that people use daily.
+  The identity stays: one petrol tint, quiet/loud, shop monograms. Calm means few moving parts: no tips, no cards with
+  numbers, no tracking.
+- **Material.** Glass only for the control layer: navigation bar, tab capsule, dock, sheets, toast. Never on content
+  (rows, groups, text) and never as decoration. Lightness and contrast are measured against the worst background
+  (see Material below). Without `backdrop-filter`, or with `prefers-reduced-transparency`, the same surfaces are solid.
+- **Motion.** Everything that moves answers a touch or explains a change: pages slide or fade (View Transitions), the
+  order title travels from the tapped row into the detail, sheets and rows spring, the large title shrinks into the bar,
+  changed digits roll in. Only `transform` and `opacity` animate. Every motion has a fallback and a reduced-motion
+  version (see Motion and gestures).
 - **Type.** System font stack (`-apple-system, system-ui, sans-serif`). No web font file.
 - **Color.** Cool neutrals plus one petrol tint. Status is always text plus a symbol, never color alone.
 - **Density.** Medium. Rows are 56 px with two lines of text, page margins are 16 px.
@@ -69,7 +79,7 @@ inverted light one.
 - Status is text plus symbol: amber "To ship" with a parcel, gray "Shipped" with a check mark, red "Canceled" with a cross.
 - Shop monograms use six fixed colors, the same in light and dark, with white letters (each at least 4.5:1). The color
   only helps recognition. The shop name is always next to it or in the accessible label.
-- Red surfaces only for the refund confirmation and for errors.
+- Red surfaces only for confirmations that move money or cannot be undone (refund, cancel, return with refund) and for errors.
 - Bars use `color-mix(in srgb, var(--bg) 82%, transparent)` with `backdrop-filter: blur(20px) saturate(1.4)` and a
   hairline. With "Reduce Transparency" or without `backdrop-filter` they fall back to a solid `--bg`.
 
@@ -90,7 +100,8 @@ inverted light one.
 | `--warn-ink` | `#8A4B00` | `#FFC76B` | Status "To ship", text |
 | `--warn-bg` | `#FFF1D6` | `#3A2A0C` | Status "To ship", background |
 | `--danger` | `#C0271F` | `#FF8A80` | Errors and refunds, text and fill |
-| `--danger-on` | `#FFFFFF` | `#2A0A07` | Text on a filled danger surface |
+| `--danger-fill` | `#C0271F` | `#D92D20` | Fill of the red button (refund, cancel, sign out) |
+| `--danger-on` | `#FFFFFF` | `#FFFFFF` | Text on a filled danger surface |
 | `--danger-ink` | `#B3231B` | `#FF8A80` | Status "Canceled/Error", text |
 | `--danger-bg` | `#FDE9E7` | `#3B1512` | Status "Canceled/Error", background |
 | `--neutral-ink` | `#4A545D` | `#B4BDC4` | Status "Shipped", muted |
@@ -136,7 +147,7 @@ is not verified on a device.
 | Status "Shipped" | `neutral-ink` on `neutral-bg` | 4.5 | 6.41 ✓ | 7.49 ✓ |
 | Status "Canceled/Error" | `danger-ink` on `danger-bg` | 4.5 | 5.67 ✓ | 7.07 ✓ |
 | Error text or refund on row | `danger` on `surface` | 4.5 | 5.91 ✓ | 7.81 ✓ |
-| Label on filled refund button | `danger-on` on `danger` | 4.5 | 5.91 ✓ | 8.03 ✓ |
+| Label on filled refund button | `danger-on` on `danger-fill` | 4.5 | 5.91 ✓ | 4.83 ✓ |
 | Monogram slate | `mono-ink` on `shop-1` | 4.5 | 6.80 ✓ | 6.80 ✓ |
 | Monogram plum | `mono-ink` on `shop-2` | 4.5 | 6.45 ✓ | 6.45 ✓ |
 | Monogram bronze | `mono-ink` on `shop-3` | 4.5 | 5.91 ✓ | 5.91 ✓ |
@@ -155,25 +166,115 @@ is not verified on a device.
 | Focus ring on page background (non-text) | `tint` on `bg` | 3 | 5.53 ✓ | 9.62 ✓ |
 <!-- /GEN:contrast -->
 
+### Material
+
+<!-- GEN:material -->
+Material = `--sheet` at 93 % (light) and 88 % (dark) over the worst case: a solid area of `--label` behind it (darkest thing in light mode, lightest in dark mode). Blur 24 px, saturation 1.6.
+
+| Pair | Measured on | Required | Light | Dark |
+|---|---|---|---|---|
+| Primary text on material | `label` on material over `label` | 4.5 | 13.89 ✓ (rgb 227 228 230) | 10.66 ✓ (rgb 53 57 60) |
+| Tab label and subtitle on material | `label-2` on material over `label` | 4.5 | 5.05 ✓ (rgb 227 228 230) | 5.11 ✓ (rgb 53 57 60) |
+| Action text on material | `tint` on material over `label` | 4.5 | 4.83 ✓ (rgb 227 228 230) | 5.72 ✓ (rgb 53 57 60) |
+| Error text on material | `danger` on material over `label` | 4.5 | 4.65 ✓ (rgb 227 228 230) | 5.11 ✓ (rgb 53 57 60) |
+<!-- /GEN:material -->
+
+### Display P3
+
+<!-- GEN:p3 -->
+Where the screen shows Display P3 (`@media (color-gamut: p3)`), these tokens get a more saturated variant at the same luminance (chroma × 1.2 at most, reduced until it fits the P3 gamut). Everything else, and every other screen, uses the sRGB hex above.
+
+| Token | Light: sRGB → P3 | Dark: sRGB → P3 |
+|---|---|---|
+| `--tint` | `#0A6A86` → `color(display-p3 0.1122 0.4125 0.5403)` (chroma × 1.20) | `#4DC4E2` → `color(display-p3 0.3565 0.7656 0.9038)` (chroma × 1.20) |
+| `--tint-soft` | `#E1F1F6` → `color(display-p3 0.8858 0.9449 0.9676)` (chroma × 1.20) | `#0F2D36` → `color(display-p3 0.0710 0.1756 0.2168)` (chroma × 1.20) |
+| `--danger-fill` | `#C0271F` → `color(display-p3 0.7459 0.1161 0.0837)` (chroma × 1.20) | `#D92D20` → `color(display-p3 0.8432 0.1343 0.0757)` (chroma × 1.20) |
+| `--danger` | `#C0271F` → `color(display-p3 0.7459 0.1161 0.0837)` (chroma × 1.20) | `#FF8A80` → `color(display-p3 0.9876 0.5350 0.4857)` (chroma × 1.20) |
+
+Contrast of the pairs that use them, measured with the P3 luminance:
+
+| Pair | Tokens | Required | Light | Dark |
+|---|---|---|---|---|
+| Link or action on row | `tint` on `surface` | 4.5 | 6.14 ✓ | 8.75 ✓ |
+| Link or action on page background | `tint` on `bg` | 4.5 | 5.53 ✓ | 9.62 ✓ |
+| Label on filled primary button | `tint-ink` on `tint` | 4.5 | 6.14 ✓ | 8.21 ✓ |
+| Text in shipping band | `tint` on `tint-soft` | 4.5 | 5.30 ✓ | 7.12 ✓ |
+| Primary text in shipping band | `label` on `tint-soft` | 4.5 | 15.24 ✓ | 13.25 ✓ |
+| Error text or refund on row | `danger` on `surface` | 4.5 | 5.91 ✓ | 7.81 ✓ |
+| Label on filled refund button | `danger-on` on `danger-fill` | 4.5 | 5.91 ✓ | 4.83 ✓ |
+| Cancel in sheet | `tint` on `sheet` | 4.5 | 5.53 ✓ | 8.14 ✓ |
+| Focus ring on row (non-text) | `tint` on `surface` | 3 | 6.14 ✓ | 8.75 ✓ |
+| Focus ring on page background (non-text) | `tint` on `bg` | 3 | 5.53 ✓ | 9.62 ✓ |
+<!-- /GEN:p3 -->
+
 ## Spacing, radii, shadow, motion, sizes
 
 <!-- GEN:scale -->
 | Group | Value |
 |---|---|
 | Spacing (px, 4 pt grid) | `--space-1` 4 · `--space-2` 8 · `--space-3` 12 · `--space-4` 16 · `--space-5` 20 · `--space-6` 24 · `--space-7` 32 · `--space-8` 40 · `--space-9` 48 · `--space-10` 64 |
-| Radii (px) | `--radius-chip` 999 · `--radius-button` 999 · `--radius-field` 10 · `--radius-tile` 8 · `--radius-group` 12 · `--radius-sheet` 28 |
-| Sizes (px) | `--size-tap` 44 · `--size-row` 56 · `--size-row-single` 44 · `--size-field` 50 · `--size-button` 50 · `--size-tabbar` 49 · `--size-navbar` 44 · `--size-monogram` 36 · `--size-monogram-sm` 24 · `--size-status-bar-mock` 54 · `--size-home-indicator` 34 |
+| Radii (px) | `--radius-chip` 999 · `--radius-button` 999 · `--radius-field` 10 · `--radius-tile` 8 · `--radius-group` 12 · `--radius-sheet` 28 · `--radius-capsule` 31 · `--radius-indicator` 25 |
+| Sizes (px) | `--size-tap` 44 · `--size-row` 56 · `--size-row-single` 44 · `--size-field` 50 · `--size-button` 50 · `--size-tabbar` 49 · `--size-navbar` 44 · `--size-capsule` 62 · `--size-capsule-gap` 6 · `--size-float` 12 · `--size-monogram` 36 · `--size-monogram-sm` 24 · `--size-status-bar-mock` 54 · `--size-home-indicator` 34 |
 | Shadow sheet | Light `0 -12px 40px rgb(0 0 0 / 0.16)` · Dark `0 -12px 40px rgb(0 0 0 / 0.55)` |
 | Shadow popover | Light `0 8px 30px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.06)` · Dark `0 8px 30px rgb(0 0 0 / 0.55), 0 0 0 0.5px rgb(255 255 255 / 0.08)` |
+| Shadow float | Light `0 10px 30px rgb(0 0 0 / 0.14), 0 2px 6px rgb(0 0 0 / 0.08)` · Dark `0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3)` |
+| Edge glare | Light `inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 0 0 0.5px rgb(255 255 255 / 0.55)` · Dark `inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 0.5px rgb(255 255 255 / 0.08)` |
 | Motion | `--dur-press` 120ms · `--dur-state` 200ms · `--dur-sheet` 340ms · `--dur-fade` 150ms · `--ease-out` cubic-bezier(0.22, 1, 0.36, 1) · `--ease-sheet` cubic-bezier(0.32, 0.72, 0, 1) |
 <!-- /GEN:scale -->
 
+### Springs
+
+<!-- GEN:spring -->
+| Spring | Damping ζ | Response (s) | Settles after | Overshoot | Use |
+|---|---|---|---|---|---|
+| `sheet` | 0.86 | 0.46 | 590 ms | 0.5 % | Sheet rises, detent snaps |
+| `press` | 0.72 | 0.28 | 335 ms | 3.8 % | Pressed buttons and rows springing back |
+| `settle` | 0.9 | 0.4 | 370 ms | 0.0 % | Tab indicator, toast, rows that move |
+<!-- /GEN:spring -->
+
+### Concentric corners
+
+<!-- GEN:concentric -->
+| Rule | Computed | Token | |
+|---|---|---|---|
+| sheet 28 − page margin 16 = group | 12 | 12 | ✓ |
+| capsule radius = capsule height / 2 | 31 | 31 | ✓ |
+| capsule radius − gap = tab indicator | 25 | 25 | ✓ |
+<!-- /GEN:concentric -->
+
 - Radii have a hierarchy: groups 12, fields 10, monogram tile 8, buttons and chips capsule, sheet top 28. Monograms
   are rounded squares, not circles.
-- Shadows only on sheets and popovers. Everything else is separated by surface color (`--surface` on `--bg`).
-- Motion shows state only: a sheet appears, a row is pressed, a banner shows up. 150 to 250 ms for state changes,
-  340 ms for sheets, 120 ms for press feedback. With `prefers-reduced-motion: reduce` a cross-fade replaces all sliding
-  and scaling.
+- Shadows only on floating controls (tab capsule, dock, toast), sheets and popovers. Content is separated by surface
+  color (`--surface` on `--bg`).
+- Corners are concentric: an inner radius is the outer radius minus the gap between them (table above, checked by the
+  token script).
+- Motion is described in the next section.
+
+## Motion and gestures
+
+| What | How | Fallback |
+|---|---|---|
+| Page change | `document.startViewTransition` around every navigation (`pwa/src/lib/transition.ts`). Going deeper the new page slides in from the right over the old one, going back is the reverse, between tabs the page fades. `<html data-vt>` carries the kind. | No API, or `prefers-reduced-motion`: the page just changes. |
+| Shared element | The order title: the row title in the list and the detail `h1` carry `view-transition-name: order-title`. The tapped row is named at the moment of the tap, the row for the way back right after the list rendered. Only one element has the name at a time. | Same as above. |
+| Tab capsule | Own transition name `tabbar`, so it does not blink between tabs. | Same as above. |
+| Springs | Sheet rise, press, tab indicator, toast, rows that move use `linear()` curves computed from a damped spring (table Springs). | `cubic-bezier` (`--ease-sheet`) where `linear()` is missing. |
+| Large title | Shrinks and fades while the inline title in the bar fades in, and the bar material fades in. Scroll-driven (`animation-timeline: scroll()`), `<html data-sda>` switches it on. | Script mirrors the scroll position into `data-collapsed` and `data-title` on the screen, CSS fades. `data-sda` is never set under `prefers-reduced-motion`, so the fallback also covers that case. |
+| Sheet | Rests in a half position when its content is taller than 66 % of the window, drag on the grabber or the head to the full position or away. A flick counts as further (140 ms projection). A sheet that is sending money (`locked`) cannot be pulled away, closed with Escape or by the dimmed area. | Without drag it closes with Cancel. |
+| Swipe action | Order rows swipe left to show one action: Ship (open, to ship or partly shipped) or Paid (not paid, only with the right). It opens the detail page with the confirmation, which checks the state again. Vertical movement stays with the scroll. | The same actions are on the detail page. |
+| Pull to refresh | An arrow in a round material tile that turns when the pull is long enough, three pulsing dots while it loads. No spinner, no layout change. | None needed. |
+| Digits | Changed digits of amounts and counts rise in (place values matched from the end). The first render is still. | Reduced motion: no animation. |
+| Mark as delivered | Shown at once in the cached order. A clear refusal puts it back and shows the reason, a lost answer does not (the shop may have done it) and the re-read decides. Refund, capture, cancel and return are never shown before the shop answers. | None. |
+| Toast | Capsule of the control material, drops in from the top edge and leaves the same way. | Solid without blur. |
+| Haptics | None are faked: no `navigator.vibrate`. Feedback is visual (pressed state, spring back, toast). | None. |
+
+Edge swipe back: in the installed app (`display-mode: standalone`) a page with a back button also goes back on a swipe
+that starts within 24 px of the left edge, travels at least 72 px to the right and stays mostly horizontal. It does
+nothing while a sheet is open and in a browser tab, where the browser has its own gesture. If the system went back during
+the same swipe (a `popstate` arrived), the app does not go back a second time. Not verified on an iPhone: whether iOS
+standalone already has its own edge swipe is unknown (see the last section).
+
+Install hint (iOS Safari tab only): one quiet row with the title, a chevron and the close cross. Tapping the row opens the
+explanation and the three steps. The cross keeps it away for 30 days. It is content, so it has no material.
 
 ## Layout
 
@@ -195,21 +296,21 @@ every screen.
 
 | Component | Rules |
 |---|---|
-| Navigation bar | 44 px, large title below that collapses to an inline title on scroll. Back on the left, at most one action on the right. |
+| Navigation bar | 44 px plus the top inset, floats above the content. The material and a soft edge fade in once content scrolls under it, the large title shrinks into it. Back is a round material button with only the chevron (label for screen readers), at most one action on the right. |
 | Shop switcher | Left in the navigation bar: stacked monograms plus the current choice and a chevron. Opens a popover menu. The choice applies to all tabs. |
-| Tab bar | Five tabs. 24 px icon (filled when selected), `caption-2` label, tint when selected. Badge only on Orders (open to ship, up to 99+). |
+| Tab bar | A capsule of 62 px that floats 12 px above the bottom edge and the safe area. Three tabs, 24 px icon (filled when selected), `caption-2` label, an indicator capsule slides under the selected tab. Badge only on Orders (open to ship, up to 99+). |
 | Group (inset list) | `--surface`, radius 12, 16 px margin. Rows are separated by a hairline starting at the text edge. Section titles in `footnote`, `label-2`. |
 | Row | At least 56 px (two lines) or 44 px (one line) and grows with Dynamic Type. Monogram left, title and subtitle in the middle, amount or chevron right. Pressed: `--surface-2`. |
 | Primary button | Capsule, 50 px, `--tint` with `--tint-ink`, label in `headline`. Disabled is 40 % opacity and a help text says why. |
 | Secondary button | Capsule, 50 px, `--tint-soft` with `--tint`. |
-| Danger button | Refund confirmation and sign out only: `--danger` with `--danger-on`. The label names the amount. |
-| Field | 50 px, radius 10, 1 px `--border-input`, visible label above the field (never placeholder-only), at least 16 px text, error directly below with symbol and text. |
+| Danger button | Second step of a refund, a cancellation or a return with refund, and sign out: `--danger-fill` with `--danger-on` (white). The label names the amount or the action. "Back" under it is a plain text button, never a filled one. |
+| Field | 50 px, radius 10, 1 px `--border-input`, visible label above the field (never placeholder-only), at least 16 px text, error directly below with symbol and text. A shortcut for the value ("All (€ 39.00)") is a chip inside the field on the right. |
 | Segment, chips | Segment for two or three equal views. Filter chips scroll horizontally, 44 px tall, never wrap. |
 | Status chip | Capsule, `caption` size, symbol plus text. |
-| Sheet | From the bottom, `--sheet` background, fields on `--sheet-field`, top radius 28, grabber, cancel left and action right or docked. Swipe down closes unless an action is running. |
-| Toast, banner | Quiet, below the bar, 4 s, with "Undo" where possible. Errors stay until dismissed. |
+| Sheet | From the bottom, control material, fields on `--sheet-field`, top radius 28, grabber. The head has three columns: Cancel left, title centered, the forward action right (Next, Review). Confirmation sheets keep their action at the bottom in the danger button. Rests in half and full position when tall, swipe down closes unless an action is running. |
+| Toast, banner | Toast: capsule of the control material with a symbol, below the status bar, 4 s. Errors stay until dismissed. Banner: quiet, on `--surface-2`. |
 | Empty state | 40 px symbol, headline, one sentence on what is missing and what to do, one button. |
-| Skeleton | Row shape in `--surface-2`, no shimmer, space reserved so nothing jumps. |
+| Skeleton | Row shape in `--surface-2` with a slow opacity pulse, space reserved so nothing jumps. No spinner. |
 
 Icons are [Phosphor](https://github.com/phosphor-icons/core) 2.1.1 (MIT, license text in `docs/mocks/icons/`), inline
 SVG with `fill="currentColor"`: regular in the normal state, fill for the selected tab. Decorative icons get
@@ -239,7 +340,7 @@ Target is WCAG 2.2 AA and the Apple Human Interface Guidelines.
   Changes are announced with `aria-live="polite"`, errors with `role="alert"`. Headings are real `h1` to `h3`.
 - Inputs set `autocomplete` (`username`, `current-password`, `one-time-code`), `inputmode="numeric"` for the MFA code
   and `enterkeyhint`, so password managers and the iOS authenticator suggestion work.
-- No gesture is the only way to do something. Every swipe action also exists in a menu. Nothing needs press-and-hold.
+- No gesture is the only way to do something. Every swipe action also exists on the detail page, and the hidden swipe button is `inert` while the row is closed. Nothing needs press-and-hold.
 - `lang` follows the language choice. Numbers and currencies follow the locale.
 
 ## Rules for new screens
@@ -248,10 +349,11 @@ Target is WCAG 2.2 AA and the Apple Human Interface Guidelines.
    the mocks.
 2. Reuse the components above. A new control needs a reason that an existing one cannot meet.
 3. Write texts in `pwa/src/lib/i18n.ts` for both languages (de and en).
-4. Look at the rendered screen, not only at tests: light and dark, 390 px wide, with the iPhone 15 WebKit profile.
-   `npm run shots` in `pwa/` writes the screenshots and logs `scrollWidth` against `innerWidth` to
-   `docs/shots/overflow-check.json`.
-5. Keep three limits: no KPI card grids, no gradient text, no second accent color.
+4. Look at the rendered screen, not only at tests: light and dark, 390 px wide. `npm run shots` in `pwa/` writes the
+   screenshots (WebKit, iPhone 15 profile) and logs `scrollWidth` against `innerWidth` to `docs/shots/overflow-check.json`.
+   WebKit on Linux draws no backdrop blur, so the glass material is shot with `SHOT_BROWSER=chromium npm run shots`.
+   `docs/shots/` holds the Chromium shots (material visible), `docs/shots/webkit/` the WebKit ones.
+5. Keep the limits: no KPI card grids, no gradient text, no second accent color, no glass on content, no tips, no tracking, no web fonts.
 
 ## What is measured and what is not
 
@@ -259,4 +361,6 @@ Target is WCAG 2.2 AA and the Apple Human Interface Guidelines.
 `docs/mocks/shots/render-log.txt`: per image `scrollWidth == innerWidth`, every control at least 44 x 44 px, every
 input at least 16 px, the computed font family. Not verified because it needs a real iPhone: installation and
 standalone launch, real safe-area values, status bar legibility, Dynamic Type, "Increase Contrast", the SF glyph
-shapes, push delivery, the camera scan.
+shapes, push delivery, the camera scan, the look of the real blur on iOS (WebKit on Linux draws none; Chromium blurs, and
+contrast is measured against a solid worst case instead), Display P3 on a wide-gamut screen, touch feel of the gestures,
+whether an installed iOS web app really goes back by itself from the left edge.

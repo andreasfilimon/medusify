@@ -36,7 +36,7 @@ export function ShipQueue() {
   return (
     <div className="screen">
       <NavBar back={back} title={t("ship.title")} />
-      <Scroll>
+      <Scroll heading={{ title: t("ship.title") }}>
         {query.isPending ? <Skeleton rows={3} /> : null}
         {query.isError ? <ErrorState text={t("orders.error")} onRetry={() => void query.refetch()} /> : null}
         {!query.isPending && !query.isError && !current ? (

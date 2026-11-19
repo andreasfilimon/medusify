@@ -7,6 +7,7 @@ import { startScan, type ScanHandle } from "../lib/scan"
 import type { Order, Shop } from "../lib/types"
 import { Icon } from "./Icon"
 import { FieldError } from "./kit"
+import { SheetAction, useInSheet } from "./Sheet"
 import { useToast } from "./Toast"
 
 type Camera = "starting" | "on" | "denied" | "none"
@@ -32,6 +33,8 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const errId = useId()
+  const formId = useId()
+  const inSheet = useInSheet()
   const locationId = useId()
   const [chosenLocation, setChosenLocation] = useState<string | null>(null)
   // Where the goods leave from. One location needs no question; with several the user picks, the first one is preselected.
@@ -96,7 +99,7 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
   }
 
   return (
-    <form className="form ship" onSubmit={submit} noValidate>
+    <form className="form ship" id={formId} onSubmit={submit} noValidate>
       {off ? (
         <p className="cam-off">
           <Icon name="camera" size="sm" />
@@ -157,9 +160,13 @@ export function ShipForm({ shop, order, onDone }: { shop: Shop; order: Order; on
       </button>
       {error ? <FieldError id={errId}>{error}</FieldError> : null}
       {!online ? <FieldError id={errId}>{t("ship.offline")}</FieldError> : null}
-      <button className="btn primary form-submit" type="submit" disabled={busy || !number || urlBad || !online}>
-        {t("ship.confirm")}
-      </button>
+      {inSheet ? (
+        <SheetAction label={t("ship.confirm")} form={formId} disabled={busy || !number || urlBad || !online} />
+      ) : (
+        <button className="btn primary form-submit" type="submit" disabled={busy || !number || urlBad || !online}>
+          {t("ship.confirm")}
+        </button>
+      )}
     </form>
   )
 }

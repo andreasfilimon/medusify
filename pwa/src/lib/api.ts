@@ -1,3 +1,4 @@
+import { ALL_ALLOWED, type Permissions } from "./actions"
 import type { Dashboard, Order, OrderItem, Shop } from "./types"
 
 export type ApiErrorKind = "unauthorized" | "notfound" | "rejected" | "network" | "server"
@@ -15,7 +16,7 @@ export class ApiError extends Error {
 
 /**
  * What a failed shipment call means for the user.
- * - unknown: no answer, or a gateway/server error. The shop may have created the fulfillment or even the shipment
+ * - unknown: no answer, a gateway/server error, or 409 (an earlier try with the same key is still in progress). The shop may have created the fulfillment or even the shipment
  *   before the connection broke, so "rejected" would be a guess.
  * - auth: the login ended.
  * - rejected: the shop answered and said no; its message (if any) is the reason.
@@ -25,6 +26,8 @@ export type ShipFailure = { kind: "unknown" } | { kind: "auth" } | { kind: "reje
 export function shipFailure(err: unknown): ShipFailure {
   if (err instanceof ApiError) {
     if (err.kind === "network" || err.kind === "server") return { kind: "unknown" }
+    // 409: the shop is still working on an earlier try with the same key (e.g. a refund in progress). It may still land.
+    if (err.status === 409) return { kind: "unknown" }
     if (err.kind === "unauthorized") return { kind: "auth" }
     return { kind: "rejected", reason: err.message && err.message !== err.kind ? err.message : undefined }
   }
@@ -242,7 +245,7 @@ export const ORDER_FIELDS = [
   "id", "display_id", "status", "created_at", "email", "currency_code", "payment_status", "fulfillment_status", "sales_channel_id",
   "total", "subtotal", "shipping_total", "tax_total", "item_total",
   "*items", "*items.detail", "*shipping_address", "*shipping_methods", "*fulfillments", "*fulfillments.items", "*fulfillments.labels",
-  "*payment_collections", "*payment_collections.payments",
+  "*payment_collections", "*payment_collections.payments", "*payment_collections.payments.captures", "*payment_collections.payments.refunds",
   // `required_quantity` of an inventory kit: a fulfillment item of a kit line holds the line quantity times it (see shipmentsToCreate).
   "items.variant.inventory_items.inventory_item_id", "items.variant.inventory_items.required_quantity",
 ].join(",")
@@ -448,6 +451,64 @@ async function locationsOf(shop: Shop, order: Order): Promise<FulfillmentLocatio
   if (found.length === 0) found = await list()
   if (found.length === 0) throw new ApiError("rejected", 0, "no stock location")
   return found.sort(byNameThenId)
+}
+
+// ---- order actions ----------------------------------------------------------------------------------------
+// Routes and bodies read from @medusajs/medusa 2.22.7 (dist/api/admin): payments/:id/capture {amount?}, payments/:id/refund
+// {amount, note?, idempotency_key?}, payment-collections/:id/mark-as-paid {order_id}, orders/:id/cancel {} (the app uses the plugin's /admin/medusify/orders/:id/cancel),
+// orders/:id/fulfillments/:fid/mark-as-delivered {}. The return goes through the plugin (/admin/medusify/returns).
+
+export async function capturePayment(shop: Shop, paymentId: string): Promise<void> {
+  await post(shop, `/admin/payments/${encodeURIComponent(paymentId)}/capture`)
+}
+
+export async function markPaid(shop: Shop, collectionId: string, orderId: string): Promise<void> {
+  await post(shop, `/admin/payment-collections/${encodeURIComponent(collectionId)}/mark-as-paid`, { order_id: orderId })
+}
+
+/** Through the plugin: it is Medusa's cancel, plus the refund right when captured money is still to be given back. */
+export async function cancelOrder(shop: Shop, orderId: string): Promise<void> {
+  await post(shop, `/admin/medusify/orders/${encodeURIComponent(orderId)}/cancel`)
+}
+
+export async function markDelivered(shop: Shop, orderId: string, fulfillmentId: string): Promise<void> {
+  await post(shop, `/admin/orders/${encodeURIComponent(orderId)}/fulfillments/${encodeURIComponent(fulfillmentId)}/mark-as-delivered`)
+}
+
+/** `idempotencyKey` is made once per opened refund sheet, so a retry after a lost answer cannot refund twice. */
+export async function refundPayment(shop: Shop, paymentId: string, amount: number, idempotencyKey: string): Promise<void> {
+  await post(shop, `/admin/payments/${encodeURIComponent(paymentId)}/refund`, { amount, idempotency_key: idempotencyKey })
+}
+
+/** `idempotency_key` is made once per attempt and sent again unchanged on a retry: the shop then answers with the same return. */
+export type ReturnInput = { order_id: string; items: { id: string; quantity: number }[]; refund_amount?: number; idempotency_key?: string }
+
+export async function acceptReturn(shop: Shop, input: ReturnInput): Promise<{ return_id: string; refunded: boolean }> {
+  return json(await post(shop, "/admin/medusify/returns", input))
+}
+
+/**
+ * What the signed-in user may do. A shop whose plugin is older than 0.2.0 has no such route (404) and a failed read says
+ * nothing about the rights: both leave every action visible, and Medusa itself still refuses what the role may not do.
+ */
+export async function getPermissions(shop: Shop): Promise<Permissions> {
+  try {
+    const body = await json<{ actions?: Partial<Permissions> }>(await shopFetch(shop, "/admin/medusify/permissions"))
+    return { ...ALL_ALLOWED, ...body.actions }
+  } catch (e) {
+    if (e instanceof ApiError && e.kind === "unauthorized") throw e
+    return ALL_ALLOWED
+  }
+}
+
+export type PushKindPrefs = Record<"canceled" | "return_requested", boolean>
+
+export async function getPushPreferences(shop: Shop, endpoint: string): Promise<PushKindPrefs> {
+  return (await json<{ kinds: PushKindPrefs }>(await shopFetch(shop, `/admin/medusify/push-preferences?endpoint=${encodeURIComponent(endpoint)}`))).kinds
+}
+
+export async function setPushPreference(shop: Shop, endpoint: string, kind: keyof PushKindPrefs, enabled: boolean): Promise<PushKindPrefs> {
+  return (await json<{ kinds: PushKindPrefs }>(await post(shop, "/admin/medusify/push-preferences", { endpoint, kind, enabled }))).kinds
 }
 
 // ---- push (plugin routes) ---------------------------------------------------------------------------------

@@ -15,6 +15,21 @@ test.describe("iPhone journey", () => {
   test.describe("signed in", () => {
     test.use({ storageState: "e2e/.auth/state.json" })
 
+    test("install hint: one line with a close cross, the steps open on tap, the cross hides it", async ({ page }) => {
+      await page.goto("")
+      await expect(page.getByRole("heading", { name: "Start" }).first()).toBeVisible()
+      const hint = page.locator(".install")
+      await expect(hint).toBeVisible()
+      await expect(hint.getByRole("button", { name: "Schließen" })).toBeVisible() // visible while closed
+      expect((await hint.boundingBox())!.height).toBeLessThan(70) // one row, not a quarter of the screen
+      await expect(hint.locator("li").first()).toBeHidden()
+      await hint.locator("summary").click()
+      await expect(hint.locator("li")).toHaveCount(3)
+      await expect(hint.locator("li").first()).toBeVisible()
+      await hint.getByRole("button", { name: "Schließen" }).click()
+      await expect(hint).toHaveCount(0)
+    })
+
     test("opens an order from the list", async ({ page }) => {
       await page.goto("orders")
       await expect(page.getByRole("heading", { name: "Bestellungen" }).first()).toBeVisible()

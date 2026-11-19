@@ -1,14 +1,13 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
 import { Modules } from "@medusajs/framework/utils"
 import { createOrderWorkflow, createProductsWorkflow, createShippingProfilesWorkflow } from "@medusajs/medusa/core-flows"
 import { createAdmin } from "../helpers/admin"
 import { createRegion } from "../helpers/orders"
-import { useThrowAwayRbacLicense } from "../helpers/rbac-license"
+import { rbacRunner } from "../helpers/rbac-license"
 
-// Must run before the runner loads medusa-config.ts: it adds the licensed RBAC module only when this is set.
-useThrowAwayRbacLicense()
+// Sets the throw-away license before the runner loads medusa-config.ts (it adds the licensed RBAC module only then).
+const runner = rbacRunner()
 
 jest.setTimeout(120 * 1000)
 
@@ -23,7 +22,7 @@ const source = readFileSync(join(__dirname, "../../../pwa/src/lib/api.ts"), "utf
 const block = source.slice(source.indexOf("export const ORDER_FIELDS = ["), source.indexOf('].join(",")'))
 const ORDER_FIELDS = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]).join(",")
 
-medusaIntegrationTestRunner({
+runner({
   testSuite: ({ api, getContainer }) => {
     describe("the order screen's field list under Medusa RBAC", () => {
       it("answers 200 for a reader of orders, without the variant's inventory links; a role that may read all has them", async () => {

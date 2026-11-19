@@ -10,10 +10,10 @@ type Middleware = (req: MedusaRequest, res: MedusaResponse, next: MedusaNextFunc
  * the missing export there would stop the whole backend from starting ("authorize is not a function"), so the plugin
  * falls back to a middleware that lets the request through.
  */
-export function authorizeIfAvailable(policy: Policy, framework: Record<string, unknown> = http): Middleware {
+export function authorizeIfAvailable(policy: Policy | Policy[], framework: Record<string, unknown> = http): Middleware {
   const authorize = framework.authorize
   if (typeof authorize === "function") {
-    return (authorize as (p: Policy) => Middleware)(policy)
+    return (authorize as (p: Policy | Policy[]) => Middleware)(policy)
   }
   return (_req, _res, next) => next()
 }

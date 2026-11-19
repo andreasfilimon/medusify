@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import { useApp } from "../app/context"
 import type { OrderState } from "../lib/orders"
 import { monogram } from "../lib/shops"
@@ -121,5 +121,34 @@ export function FieldError({ id, children }: { id: string; children: ReactNode }
       <Icon name="warning-circle" size="xs" />
       {children}
     </p>
+  )
+}
+
+/**
+ * A number or amount whose changed digits roll in (a short rise with a fade, transform and opacity only). The first render and
+ * unchanged digits stay still. The text is the plain string, so reading and finding it works as without the animation.
+ * Places are matched from the end, so a new thousands digit does not make every digit move.
+ */
+export function Digits({ text, className }: { text: string; className?: string }) {
+  const before = useRef<string | null>(null)
+  const old = before.current
+  useEffect(() => {
+    before.current = text
+  })
+  const chars = [...text]
+  const oldChars = old === null ? null : [...old]
+  return (
+    <span className={className}>
+      {chars.map((ch, i) => {
+        const place = chars.length - i
+        const was = oldChars ? oldChars[oldChars.length - place] : undefined
+        const rolls = oldChars !== null && old !== text && ch !== was && /\d/.test(ch)
+        return (
+          <span key={`${place}:${ch}`} className={rolls ? "d roll" : undefined}>
+            {ch}
+          </span>
+        )
+      })}
+    </span>
   )
 }

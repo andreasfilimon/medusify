@@ -27,3 +27,4 @@ build
 # local packed plugin
 *.tgz
 .devshop-mfa
+.e2e-actions.json

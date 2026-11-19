@@ -15,6 +15,7 @@
   --warn-ink: #8A4B00;
   --warn-bg: #FFF1D6;
   --danger: #C0271F;
+  --danger-fill: #C0271F;
   --danger-on: #FFFFFF;
   --danger-ink: #B3231B;
   --danger-bg: #FDE9E7;
@@ -34,6 +35,9 @@
   --camera-ink: #FFFFFF;
   --shadow-sheet: 0 -12px 40px rgb(0 0 0 / 0.16);
   --shadow-popover: 0 8px 30px rgb(0 0 0 / 0.18), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  --material-mix: 93%;
+  --glare: inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 0 0 0.5px rgb(255 255 255 / 0.55);
+  --shadow-float: 0 10px 30px rgb(0 0 0 / 0.14), 0 2px 6px rgb(0 0 0 / 0.08);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -50,6 +54,8 @@
   --radius-tile: 8px;
   --radius-group: 12px;
   --radius-sheet: 28px;
+  --radius-capsule: 31px;
+  --radius-indicator: 25px;
   --size-tap: 44px;
   --size-row: 56px;
   --size-row-single: 44px;
@@ -57,6 +63,9 @@
   --size-button: 50px;
   --size-tabbar: 49px;
   --size-navbar: 44px;
+  --size-capsule: 62px;
+  --size-capsule-gap: 6px;
+  --size-float: 12px;
   --size-monogram: 36px;
   --size-monogram-sm: 24px;
   --size-status-bar-mock: 54px;
@@ -67,6 +76,14 @@
   --dur-fade: 150ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-spring-sheet: 590ms;
+  --dur-spring-press: 335ms;
+  --dur-spring-settle: 370ms;
+  --ease-spring-sheet: var(--ease-sheet);
+  --ease-spring-press: var(--ease-sheet);
+  --ease-spring-settle: var(--ease-sheet);
+  --material-blur: 24px;
+  --material-saturate: 1.6;
   --fs-large-title: 2rem; --lh-large-title: 1.2; --fw-large-title: 700; --ls-large-title: 0.012em;
   --fs-title-1: 1.65rem; --lh-title-1: 1.22; --fw-title-1: 700; --ls-title-1: 0.01em;
   --fs-title-2: 1.3rem; --lh-title-2: 1.27; --fw-title-2: 600; --ls-title-2: 0;
@@ -99,7 +116,8 @@
     --warn-ink: #FFC76B;
     --warn-bg: #3A2A0C;
     --danger: #FF8A80;
-    --danger-on: #2A0A07;
+    --danger-fill: #D92D20;
+    --danger-on: #FFFFFF;
     --danger-ink: #FF8A80;
     --danger-bg: #3B1512;
     --neutral-ink: #B4BDC4;
@@ -118,6 +136,9 @@
     --camera-ink: #FFFFFF;
     --shadow-sheet: 0 -12px 40px rgb(0 0 0 / 0.55);
     --shadow-popover: 0 8px 30px rgb(0 0 0 / 0.55), 0 0 0 0.5px rgb(255 255 255 / 0.08);
+    --material-mix: 88%;
+    --glare: inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
+    --shadow-float: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
   }
 }
 :root[data-theme="light"] { color-scheme: light; }
@@ -137,7 +158,8 @@
   --warn-ink: #FFC76B;
   --warn-bg: #3A2A0C;
   --danger: #FF8A80;
-  --danger-on: #2A0A07;
+  --danger-fill: #D92D20;
+  --danger-on: #FFFFFF;
   --danger-ink: #FF8A80;
   --danger-bg: #3B1512;
   --neutral-ink: #B4BDC4;
@@ -156,6 +178,9 @@
   --camera-ink: #FFFFFF;
   --shadow-sheet: 0 -12px 40px rgb(0 0 0 / 0.55);
   --shadow-popover: 0 8px 30px rgb(0 0 0 / 0.55), 0 0 0 0.5px rgb(255 255 255 / 0.08);
+  --material-mix: 88%;
+  --glare: inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
+  --shadow-float: 0 10px 30px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
 }
 /* Increased contrast (iOS "Increase Contrast"): secondary text becomes primary text, hairlines become the input border. */
 @media (prefers-contrast: more) {
@@ -173,3 +198,36 @@
 .t-caption { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--fw-caption); letter-spacing: var(--ls-caption); }
 .t-caption-2 { font-size: var(--fs-caption-2); line-height: var(--lh-caption-2); font-weight: var(--fw-caption-2); letter-spacing: var(--ls-caption-2); }
 .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+/* Springs: a damped-spring step response as linear(); browsers without linear() keep the cubic curve above. */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --ease-spring-sheet: linear(0, 0.0128, 0.0465, 0.095, 0.1535, 0.218, 0.2854, 0.3534, 0.4201, 0.4842, 0.5449, 0.6014, 0.6535, 0.701, 0.7439, 0.7823, 0.8164, 0.8464, 0.8726, 0.8954, 0.915, 0.9318, 0.946, 0.958, 0.968, 0.9763, 0.983, 0.9885, 0.9929, 0.9964, 0.9991, 1.0011, 1.0026, 1.0037, 1.0044, 1.0048, 1.005, 1.005, 1.0049, 1.0047, 1.0044, 1.0041, 1.0038, 1.0035, 1.0031, 1.0028, 1.0025, 1.0022, 1);
+    --ease-spring-press: linear(0, 0.0114, 0.0421, 0.0876, 0.144, 0.2077, 0.2759, 0.3462, 0.4166, 0.4856, 0.552, 0.6147, 0.6733, 0.7271, 0.7761, 0.8201, 0.8592, 0.8934, 0.9231, 0.9485, 0.9698, 0.9876, 1.002, 1.0134, 1.0223, 1.0289, 1.0335, 1.0364, 1.038, 1.0384, 1.0379, 1.0367, 1.0349, 1.0327, 1.0302, 1.0276, 1.0249, 1.0222, 1.0195, 1.017, 1.0146, 1.0123, 1.0103, 1.0084, 1.0068, 1.0053, 1.004, 1.0029, 1);
+    --ease-spring-settle: linear(0, 0.0068, 0.0254, 0.0531, 0.0879, 0.1278, 0.1714, 0.2174, 0.2647, 0.3124, 0.3598, 0.4063, 0.4515, 0.4951, 0.5368, 0.5764, 0.6139, 0.6491, 0.682, 0.7126, 0.7411, 0.7673, 0.7915, 0.8137, 0.834, 0.8525, 0.8693, 0.8846, 0.8984, 0.9108, 0.9219, 0.932, 0.9409, 0.9489, 0.9559, 0.9622, 0.9677, 0.9726, 0.9769, 0.9807, 0.9839, 0.9868, 0.9892, 0.9913, 0.9932, 0.9947, 0.996, 0.9971, 1);
+  }
+}
+/* Display P3 variants (same luminance, more chroma); sRGB hex above is the fallback. */
+@supports (color: color(display-p3 1 1 1)) {
+  @media (color-gamut: p3) {
+    :root {
+      --tint: color(display-p3 0.1122 0.4125 0.5403);
+      --tint-soft: color(display-p3 0.8858 0.9449 0.9676);
+      --danger-fill: color(display-p3 0.7459 0.1161 0.0837);
+      --danger: color(display-p3 0.7459 0.1161 0.0837);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --tint: color(display-p3 0.3565 0.7656 0.9038);
+        --tint-soft: color(display-p3 0.0710 0.1756 0.2168);
+        --danger-fill: color(display-p3 0.8432 0.1343 0.0757);
+        --danger: color(display-p3 0.9876 0.5350 0.4857);
+      }
+    }
+    :root[data-theme="dark"] {
+      --tint: color(display-p3 0.3565 0.7656 0.9038);
+      --tint-soft: color(display-p3 0.0710 0.1756 0.2168);
+      --danger-fill: color(display-p3 0.8432 0.1343 0.0757);
+      --danger: color(display-p3 0.9876 0.5350 0.4857);
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "medusify",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Medusa v2 plugin: web push for new orders, dashboard routes and a hosted PWA (the Medusify app) under /medusify.",
   "license": "MIT",
   "author": "Andreas Filimon",

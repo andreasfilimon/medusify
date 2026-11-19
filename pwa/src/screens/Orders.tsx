@@ -70,18 +70,18 @@ export function Orders() {
   return (
     <div className="screen">
       <NavBar scope title={t("orders.title")} />
-      <div className="search">
-        <Icon name="magnifying-glass" size="sm" />
-        <input type="search" name="q" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t("orders.search")} aria-label={t("orders.search")} value={text} onChange={(e) => setText(e.target.value)} />
-      </div>
-      <div className="chips" role="group" aria-label={t("orders.title")}>
-        {FILTERS.map((f) => (
-          <button key={f} className="fchip" aria-pressed={f === filter} onClick={() => setFilter(f)}>
-            {t(`orders.filter.${f}`)}
-          </button>
-        ))}
-      </div>
-      <Scroll onRefresh={refresh}>
+      <Scroll onRefresh={refresh} heading={{ title: t("orders.title") }}>
+        <div className="search">
+          <Icon name="magnifying-glass" size="sm" />
+          <input type="search" name="q" enterKeyHint="search" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={t("orders.search")} aria-label={t("orders.search")} value={text} onChange={(e) => setText(e.target.value)} />
+        </div>
+        <div className="chips" role="group" aria-label={t("orders.title")}>
+          {FILTERS.map((f) => (
+            <button key={f} className="fchip" aria-pressed={f === filter} onClick={() => setFilter(f)}>
+              {t(`orders.filter.${f}`)}
+            </button>
+          ))}
+        </div>
         {failedShops.length > 0 && !allFailed ? (
           <Banner icon="warning-circle" action={<button className="navbtn" onClick={() => void query.refetch()}>{t("common.retry")}</button>}>
             {t("start.shopDown", { name: failedShops.map((s) => s.name).join(", ") })}

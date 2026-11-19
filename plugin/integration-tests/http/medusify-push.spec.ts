@@ -59,7 +59,8 @@ medusaIntegrationTestRunner({
         expect(JSON.parse(body)).toEqual({
           title: "Testshop: Neue Bestellung #1",
           body: "44,98 € · 2 Artikel",
-          data: { url: `/medusify/orders/${orderId}` },
+          // badge: this paid, unshipped order is the only one to ship in the shop
+          data: { url: `/medusify/orders/${orderId}`, kind: "order_placed", shop: "Testshop", badge: 1 },
           tag: `order-${orderId}`,
         })
         expect(options.vapidDetails).toEqual({

@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter"
 import pkg from "../../package.json"
 import { useApp } from "../app/context"
 import { InstallHint } from "../features/InstallHint"
+import { PushKinds } from "../features/PushKinds"
 import type { LangPref, ThemePref } from "../lib/prefs"
 import { Icon } from "../ui/Icon"
 import { Monogram, Section, Segmented } from "../ui/kit"
@@ -49,7 +50,7 @@ export function More() {
   return (
     <div className="screen">
       <NavBar title={t("more.title")} />
-      <Scroll>
+      <Scroll heading={{ title: t("more.title") }}>
         <Section id="shops" title={t("more.shops")}>
           <div className="group">
             {shops.map((s) => (
@@ -97,6 +98,8 @@ export function More() {
           </div>
           {pushSupport === "needs-install" ? <InstallHint signedIn /> : null}
         </Section>
+
+        {pushSupport === "granted" && pushOn ? <PushKinds /> : null}
 
         <Section id="look" title={t("more.appearance")}>
           <div className="group plain pad">

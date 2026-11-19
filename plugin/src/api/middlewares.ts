@@ -9,12 +9,17 @@ import {
 } from "@medusajs/framework/http"
 import { MEDUSIFY_PWA_BASE_PATH } from "../constants"
 import { authorizeIfAvailable } from "../lib/authorize-compat"
+import { strictCancelMiddleware } from "../lib/cancel-guard"
+import { ADMIN_ACTIONS } from "../lib/permissions"
 import { ORDER_READ } from "../lib/rbac"
 import { medusifyStaticMiddleware } from "../lib/static"
 import {
   DeletePushSubscription,
   GetDashboardQuery,
+  GetPushPreferencesQuery,
+  PostPushPreference,
   PostPushSubscription,
+  PostReturn,
 } from "./admin/medusify/validators"
 
 /**
@@ -51,6 +56,43 @@ const routes: MiddlewareRoute[] = [
     matcher: "/admin/medusify/push-subscriptions",
     method: "DELETE",
     middlewares: [endpointFromQuery, validateAndTransformBody(DeletePushSubscription)],
+  },
+  {
+    // Own device settings: no right needed, so that someone who lost the order right can still switch things off.
+    matcher: "/admin/medusify/push-preferences",
+    method: "GET",
+    middlewares: [validateAndTransformQuery(GetPushPreferencesQuery, {})],
+  },
+  {
+    matcher: "/admin/medusify/push-preferences",
+    method: "POST",
+    middlewares: [validateAndTransformBody(PostPushPreference)],
+  },
+  {
+    // Which actions the user may do (the app hides the rest). Needs only a login.
+    matcher: "/admin/medusify/permissions",
+    method: "GET",
+    middlewares: [],
+  },
+  {
+    // The rights Medusa itself asks for on its return routes. A refund in the same request is checked in the handler.
+    matcher: "/admin/medusify/returns",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.return]), validateAndTransformBody(PostReturn)],
+  },
+  {
+    // Medusa's own right for canceling. Whether the order holds captured money, and so needs the refund right too, is
+    // decided in the handler.
+    matcher: "/admin/medusify/orders/:id/cancel",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.cancel])],
+  },
+  {
+    // Medusa's own cancel route refunds captured money on the order right alone. With `strictCancelRefund` the plugin asks
+    // for the refund right there as well (no-op while the option is off). Runs after Medusa's own middlewares of the route.
+    matcher: "/admin/orders/:id/cancel",
+    method: "POST",
+    middlewares: [strictCancelMiddleware],
   },
   {
     matcher: "/admin/medusify/dashboard",

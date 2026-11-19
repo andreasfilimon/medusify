@@ -1,8 +1,17 @@
 import { hasPermission } from "@medusajs/framework"
-import { resolveRoles } from "@medusajs/framework/http"
+import * as http from "@medusajs/framework/http"
 import { MedusaModule } from "@medusajs/framework/modules-sdk"
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { Modules, PolicyOperation } from "@medusajs/framework/utils"
+import type { Policy } from "./permissions"
+
+type ResolveRoles = (input: { authContext: { actor_id: string; actor_type: string }; container: MedusaContainer }) => Promise<unknown>
+
+/**
+ * `resolveRoles` exists from Medusa 2.22.3 on, with RBAC. A named import would not compile on 2.22.0 to 2.22.2, so it is
+ * read from the namespace (the same reason as in `authorizeIfAvailable`). It is only called when the RBAC module is installed.
+ */
+const resolveRoles = (http as unknown as { resolveRoles?: ResolveRoles }).resolveRoles
 
 /**
  * The right that Medusa itself asks for on every admin order route (`/admin/orders`, medusa/dist/api/admin/orders/
@@ -12,20 +21,26 @@ import { Modules, PolicyOperation } from "@medusajs/framework/utils"
 export const ORDER_READ = { resource: "order", operation: PolicyOperation.read } as const
 
 /**
- * Whether the admin user may read orders. Medusa's RBAC is a licensed module: without it every admin may read
+ * Whether the admin user holds all of these policies. Medusa's RBAC is a licensed module: without it every admin may do
  * everything (`authorize` is a no-op then, and so is this) and nothing changes. With it, the user needs a role that
- * grants `order:read` (or a wildcard). Any error while looking this up counts as "no": better no push than a push of
- * order data to someone whose right could not be checked.
+ * grants every policy (or a wildcard). Any error while looking this up counts as "no": better no push and no button
+ * than data or an action for someone whose right could not be checked.
  */
-export async function canReadOrders(container: MedusaContainer, userId: string): Promise<boolean> {
+export async function userMay(container: MedusaContainer, userId: string, policies: readonly Policy[]): Promise<boolean> {
   if (!MedusaModule.isInstalled(Modules.RBAC)) return true
   try {
+    if (!resolveRoles) return false
     const roles = await resolveRoles({
       authContext: { actor_id: userId, actor_type: "user" },
       container,
     })
-    return await hasPermission({ roles, actions: ORDER_READ, container })
+    return await hasPermission({ roles: roles as never, actions: [...policies], container })
   } catch {
     return false
   }
+}
+
+/** Whether the admin user may read orders: the right behind the order push and the dashboard. */
+export function canReadOrders(container: MedusaContainer, userId: string): Promise<boolean> {
+  return userMay(container, userId, [ORDER_READ])
 }

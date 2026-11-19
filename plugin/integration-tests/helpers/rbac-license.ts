@@ -1,4 +1,6 @@
 import crypto from "node:crypto"
+import { medusaIntegrationTestRunner } from "@medusajs/test-utils"
+import { hasMedusaRbac } from "./medusa-version"
 
 /**
  * Medusa's RBAC module only loads with a license signed by Medusa. The public key it checks against can be replaced by
@@ -14,4 +16,18 @@ export function useThrowAwayRbacLicense() {
   process.env.MEDUSA_LICENSE_PUBLIC_KEY = publicKey.export({ type: "spki", format: "pem" }).toString()
   process.env.MEDUSA_LICENSE_KEY = `${head}.${body}.${signature}`
   process.env.MEDUSIFY_TEST_RBAC = "1"
+}
+
+/**
+ * `medusaIntegrationTestRunner` for specs that need Medusa's RBAC module. It sets the throw-away license before the runner
+ * loads medusa-config.ts. Medusa 2.22.0 to 2.22.2 have no RBAC module (the plugin then lets every admin through), so
+ * there the spec is skipped, and the CI matrix can run the whole suite on those versions.
+ */
+export function rbacRunner(): typeof medusaIntegrationTestRunner {
+  if (!hasMedusaRbac()) {
+    return (() =>
+      describe.skip("needs Medusa 2.22.3 or newer (roles)", () => it("is skipped on this Medusa version", () => {}))) as never
+  }
+  useThrowAwayRbacLicense()
+  return medusaIntegrationTestRunner
 }

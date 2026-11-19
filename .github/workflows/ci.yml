@@ -38,9 +38,15 @@ jobs:
         run: test -z "$(git status --porcelain -- ../plugin/pwa-dist)"
 
   plugin:
-    name: Plugin (typecheck, unit and integration tests, build, package)
+    # A shop runs any Medusa version of the peer range, so the plugin is built and tested against its oldest supported
+    # version and against the newest one. A single version let the `authorize` import through that 2.22.1 does not have.
+    name: Plugin on Medusa ${{ matrix.medusa }} (typecheck, tests, build, package)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        medusa: ["2.22.1", "newest"]
     defaults:
       run:
         working-directory: plugin
@@ -82,10 +88,16 @@ jobs:
           cache: npm
           cache-dependency-path: plugin/package-lock.json
       - run: npm ci
+      - name: Install Medusa ${{ matrix.medusa }}
+        # Replaces the lockfile's Medusa packages and reads the installed versions back. Fails if they differ.
+        run: ./scripts/install-medusa-version.sh "${{ matrix.medusa }}"
       - run: npm run typecheck
       - run: npm run test:unit
       - run: ./scripts/run-tests.sh
       - run: npm run build
+      - name: Every compiled file loads
+        # Medusa requires these files at start. One that throws here takes a shop's backend down.
+        run: node scripts/load-built-files.mjs
       - name: Package contents
         # The tarball holds the compiled plugin and the app bundle, and no tests, source maps or dev shop files.
         run: |

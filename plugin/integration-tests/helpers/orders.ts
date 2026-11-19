@@ -96,3 +96,11 @@ export async function listedStatuses(container: MedusaContainer, orderId: string
   const rows = Array.isArray(result) ? result : (result as any).rows
   return rows[0] as Record<string, any>
 }
+
+/**
+ * Marks items of a demo order as fulfilled, the way a fulfillment would (order module's own register call). Medusa only
+ * accepts a return for goods that were fulfilled: the limit is `fulfilled_quantity` minus what is already on a return.
+ */
+export async function fulfillDemoItems(container: MedusaContainer, orderId: string, items: { id: string; quantity: number }[]) {
+  await container.resolve(Modules.ORDER).registerFulfillment({ order_id: orderId, items } as any)
+}

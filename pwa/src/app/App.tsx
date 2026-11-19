@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react"
+import { flushSync } from "react-dom"
 import { Redirect, Route, Router, Switch, useLocation } from "wouter"
+import type { AroundNavHandler } from "wouter"
 import { AddShop } from "../features/AddShop"
 import { LoginFlow } from "../features/LoginFlow"
 import { markNavigated } from "../lib/nav"
+import { kindOf, viewTransition } from "../lib/transition"
 import { More } from "../screens/More"
 import { OrderDetail } from "../screens/OrderDetail"
 import { Orders } from "../screens/Orders"
@@ -13,11 +16,17 @@ import { TabBar } from "../ui/Nav"
 import { ToastProvider } from "../ui/Toast"
 import { AppProvider, useApp } from "./context"
 
+/** Every navigation runs inside a view transition; flushSync makes React render the new page before the browser takes the "after" picture. */
+const around: AroundNavHandler = (navigate, to, opts) => {
+  if (opts?.replace) return navigate(to, opts) // redirects and sign-in hand-overs are not a step the person took
+  void viewTransition(kindOf(location.pathname, to), () => flushSync(() => navigate(to, opts)))
+}
+
 export function App() {
   return (
     <AppProvider>
       <ToastProvider>
-        <Router base="/medusify">
+        <Router base="/medusify" aroundNav={around}>
           <Shell />
         </Router>
       </ToastProvider>
@@ -61,7 +70,7 @@ function Shell() {
     return <LoginFlow shop={home} expired={wasReady.current && !logoutNote} onDone={() => navigate("/", { replace: true })} />
   }
   return (
-    <>
+    <div className="shell" data-tabs={NO_TABS.test(location) ? undefined : ""}>
       <Switch>
         <Route path="/"><Start /></Route>
         <Route path="/orders"><Orders /></Route>
@@ -72,6 +81,6 @@ function Shell() {
         <Route><Redirect to="/" replace /></Route>
       </Switch>
       {NO_TABS.test(location) ? null : <TabBar />}
-    </>
+    </div>
   )
 }

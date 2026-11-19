@@ -1,0 +1,290 @@
+[
+  {
+    "shot": "01-login-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "02-login-error-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "02b-login-mfa-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "03-start-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 32,
+    "ok": true
+  },
+  {
+    "shot": "04-orders-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "05-order-detail-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "11-order-actions-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "11d-return-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "11b-refund-amount-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "11c-refund-confirm-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "11e-cancel-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "06-ship-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "06b-ship-locations-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "06c-ship-no-answer-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "07-more-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "08-add-shop-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "09-offline-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "10-logout-session-open-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "01-login-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "02-login-error-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "02b-login-mfa-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "03-start-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 32,
+    "ok": true
+  },
+  {
+    "shot": "04-orders-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "05-order-detail-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "11-order-actions-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "11d-return-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "11b-refund-amount-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "11c-refund-confirm-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "11e-cancel-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 18,
+    "ok": true
+  },
+  {
+    "shot": "06-ship-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "06b-ship-locations-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "06c-ship-no-answer-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "07-more-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "08-add-shop-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "09-offline-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "10-logout-session-open-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  }
+]

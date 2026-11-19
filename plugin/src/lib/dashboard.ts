@@ -123,7 +123,7 @@ async function revenueSince(container: MedusaContainer, monthStart: Date, todayS
  * aggregated in memory by Medusa's own getOrdersListWorkflow (same logic as the admin order list),
  * so it can't be filtered in SQL: scan all open orders page by page.
  */
-async function countToShip(container: MedusaContainer): Promise<number> {
+export async function countToShip(container: MedusaContainer): Promise<number> {
   let count = 0
   for await (const order of pagedOrderList(container, ["id"], { status: OPEN_STATUSES })) {
     if (needsShipping(order.payment_status, order.fulfillment_status)) count++

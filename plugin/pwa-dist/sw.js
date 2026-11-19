@@ -39,8 +39,55 @@ self.addEventListener("push", (event) => {
     tag: typeof data.tag === "string" ? data.tag : undefined,
     data: { url: typeof data.data?.url === "string" ? data.data.url : "/medusify/" },
   }
-  event.waitUntil(self.registration.showNotification(title, options))
+  const label = typeof data.data?.shop === "string" ? data.data.shop : ""
+  const badge = data.data?.badge
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, options),
+      // The icon number never costs the notification: any failure in here is swallowed.
+      typeof badge === "number" ? updateBadge(label, badge).catch(() => {}) : Promise.resolve(),
+    ]),
+  )
 })
+
+/* The number on the app icon. The push carries the orders to ship of ONE shop; the other shops' numbers are in the
+ * IndexedDB "medusify-badge" that the app writes (src/lib/badge.ts, same layout: one record "all" = { shopId: { label, n } }).
+ * A push names its shop by label. One entry with that label gets the new number; two entries with the same label cannot
+ * be told apart, so the icon stays as it is until the app corrects it on the next open. */
+function badgeStore(mode, work) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open("medusify-badge", 1)
+    open.onupgradeneeded = () => open.result.createObjectStore("counts")
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const db = open.result
+      const tx = db.transaction("counts", mode)
+      const store = tx.objectStore("counts")
+      let out
+      work(store, (value) => (out = value))
+      tx.oncomplete = () => (db.close(), resolve(out))
+      tx.onerror = tx.onabort = () => (db.close(), reject(tx.error))
+    }
+  })
+}
+
+async function updateBadge(label, n) {
+  if (typeof self.navigator?.setAppBadge !== "function" || !Number.isFinite(n) || n < 0) return
+  const next = await badgeStore("readwrite", (store, done) => {
+    const get = store.get("all")
+    get.onsuccess = () => {
+      const counts = get.result || {}
+      const ids = Object.keys(counts).filter((id) => counts[id].label === label)
+      if (ids.length === 1) counts[ids[0]] = { label, n: Math.floor(n) }
+      else if (ids.length === 0) counts["push:" + label] = { label, n: Math.floor(n) }
+      store.put(counts, "all")
+      done(counts)
+    }
+  })
+  const total = Object.values(next).reduce((sum, e) => sum + (e.n > 0 ? e.n : 0), 0)
+  if (total > 0) await self.navigator.setAppBadge(total)
+  else if (typeof self.navigator.clearAppBadge === "function") await self.navigator.clearAppBadge()
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close()

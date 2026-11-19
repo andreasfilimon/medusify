@@ -7,7 +7,8 @@ const sources = import.meta.glob<string>("../src/**/*.{ts,tsx}", { query: "?raw"
 describe("service worker source", () => {
   it("caches exactly one file: the offline page", () => {
     expect(sw.match(/\.add\(/g)).toHaveLength(1)
-    expect(sw).not.toMatch(/\.put\(|\.addAll\(/)
+    // IndexedDB `store.put` (the badge numbers) is fine; the Cache API takes the offline page only.
+    expect(sw).not.toMatch(/cache\.put\(|caches[^;]*\.put\(|\.addAll\(/)
     expect(sw).toContain("offline.html")
   })
   it("answers only page navigations", () => {

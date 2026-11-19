@@ -1,6 +1,7 @@
 import { MedusaService } from "@medusajs/framework/utils"
 import webpush from "web-push"
 import { MAX_CONSECUTIVE_FAILURES } from "../../constants"
+import { type PushKind, wantsKind } from "../../lib/push-kinds"
 import PushSubscription from "./models/push-subscription"
 import { resolveOptions } from "./options"
 import type {
@@ -16,6 +17,7 @@ type SubscriptionRow = {
   p256dh: string
   auth: string
   failure_count?: number | null
+  disabled_kinds?: string[] | null
 }
 
 class MedusifyPushModuleService extends MedusaService({ PushSubscription }) {
@@ -44,12 +46,17 @@ class MedusifyPushModuleService extends MedusaService({ PushSubscription }) {
    * Sends to every stored subscription of the shop. `mayReceive` decides per admin user (once per user, not per
    * device) whether that user gets the message; subscriptions of users who may not are skipped and kept.
    * The module has no access to Medusa's RBAC (own container), so the caller passes the check in.
+   * Subscriptions that switched off `kind` are skipped and kept.
    */
   async sendToAll(
     payload: PushPayload,
-    mayReceive?: (userId: string) => Promise<boolean>
+    mayReceive?: (userId: string) => Promise<boolean>,
+    kind: PushKind = "order_placed"
   ): Promise<SendResult> {
-    const subscriptions = await this.listPushSubscriptions({}, { take: null })
+    const all = await this.listPushSubscriptions({}, { take: null })
+    const subscriptions = all.filter((sub: { disabled_kinds?: string[] | null }) =>
+      wantsKind(sub.disabled_kinds, kind)
+    )
     if (!mayReceive) {
       return this.sendToSubscriptions(subscriptions, payload)
     }

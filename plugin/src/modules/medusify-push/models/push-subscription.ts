@@ -16,6 +16,8 @@ const PushSubscription = model.define(
     user_agent: model.text().nullable(),
     last_success_at: model.dateTime().nullable(),
     failure_count: model.number().default(0),
+    /** Push kinds this device has switched off (see lib/push-kinds.ts). Empty = everything on. */
+    disabled_kinds: model.array().default([]),
   }
 )
 

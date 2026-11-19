@@ -32,6 +32,7 @@ module.exports = defineConfig({
         storeLabel: process.env.MEDUSIFY_STORE_LABEL || "Testshop",
         locale: process.env.MEDUSIFY_LOCALE || "de",
         pwaDir: process.env.MEDUSIFY_PWA_DIR || undefined,
+        strictCancelRefund: process.env.MEDUSIFY_STRICT_CANCEL_REFUND === "true" ? true : undefined,
       },
     },
   ],

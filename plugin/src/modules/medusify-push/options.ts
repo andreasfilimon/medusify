@@ -42,8 +42,14 @@ export function resolveOptions(
     problems.push(`locale "${options.locale}" is not supported, using "de"`)
   }
 
+  const strict = options?.strictCancelRefund
+  if (strict !== undefined && typeof strict !== "boolean") {
+    problems.push("strictCancelRefund must be true or false, using false")
+  }
+
+  // Only the VAPID problems switch push off; a bad locale or strictCancelRefund is reported and falls back.
   const enabled = !!publicKey && !!privateKey && !!subject &&
-    problems.filter((p) => !p.startsWith("locale")).length === 0
+    problems.filter((p) => p.startsWith("vapid.")).length === 0
 
   return {
     enabled,
@@ -54,5 +60,6 @@ export function resolveOptions(
     storeLabel: options?.storeLabel?.trim() || "Shop",
     locale,
     pwaDir: options?.pwaDir?.trim() || null,
+    strictCancelRefund: strict === true,
   }
 }

@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useLocation, useSearch } from "wouter"
 import { useApp } from "../app/context"
 import * as api from "../lib/api"
 import { ApiError } from "../lib/api"
+import { reread } from "../lib/attempt"
 import { dateTime, formatMoney } from "../lib/format"
+import { contactLinks } from "../lib/actions"
+import { tappedOrder } from "../lib/transition"
 import { goBack } from "../lib/nav"
 import { customerName, goodsTotal, orderState } from "../lib/orders"
 import type { Order, Shop } from "../lib/types"
@@ -14,6 +17,7 @@ import { NavBar } from "../ui/Nav"
 import { Scroll } from "../ui/Scroll"
 import { Sheet } from "../ui/Sheet"
 import { useToast } from "../ui/Toast"
+import { OrderActions } from "../ui/OrderActions"
 import { ShipForm } from "../ui/ShipForm"
 
 type Located = { shop: Shop; order: Order }
@@ -32,18 +36,40 @@ async function locate(shops: Shop[], shopId: string | null, id: string): Promise
 export function OrderDetail({ id }: { id: string }) {
   const { t, lang, shops, online } = useApp()
   const [, navigate] = useLocation()
-  const shopId = new URLSearchParams(useSearch()).get("shop")
+  const params = new URLSearchParams(useSearch())
+  const shopId = params.get("shop")
+  // A swipe action in the list lands here with ?do=…; it opens the matching confirmation once, then the address is clean again.
+  const intent = useRef(params.get("do"))
+  const intentDone = useRef(false)
   const toast = useToast()
   const [shipping, setShipping] = useState(false)
   const authed = shops.filter((s) => s.home || s.token)
   const query = useQuery({ queryKey: ["order", shopId ?? "any", id], queryFn: () => locate(authed, shopId, id), retry: false })
+  useEffect(() => {
+    if (intentDone.current || !intent.current || !query.data) return
+    intentDone.current = true
+    const st = orderState(query.data.order)
+    if (intent.current === "ship" && (st === "to_ship" || st === "partly")) setShipping(true)
+    navigate(`/orders/${encodeURIComponent(id)}${shopId ? `?shop=${encodeURIComponent(shopId)}` : ""}`, { replace: true })
+  }, [query.data, id, shopId, navigate])
+  // A read that works after the screen had failed also settles an action whose answer got lost (its lock waits for exactly that).
+  const retry = async () => {
+    const r = await query.refetch()
+    if (r.isSuccess) reread(`${r.data.shop.id}|${r.data.order.id}`)
+  }
+  // The title is known from the row that was tapped, so the shared element has a partner while the order loads.
+  const peek = tappedOrder(id)
+  const peekTitle = peek ? t("detail.title", { n: `#${peek.n}` }) : undefined
   const back = { label: t("tab.orders"), onClick: () => goBack(navigate, "/orders") }
 
   if (query.isPending) {
     return (
-      <div className="screen">
-        <NavBar back={back} />
-        <Scroll><Skeleton rows={4} /></Scroll>
+      <div className="screen" data-detail="">
+        <NavBar back={back} title={peekTitle} />
+        <Scroll>
+          {peekTitle ? <div className="largetitle detail-title"><h1>{peekTitle}</h1></div> : null}
+          <Skeleton rows={4} />
+        </Scroll>
       </div>
     )
   }
@@ -52,7 +78,7 @@ export function OrderDetail({ id }: { id: string }) {
     return (
       <div className="screen">
         <NavBar back={back} />
-        <Scroll>{gone ? <Empty icon="receipt" title={t("detail.gone")} /> : <ErrorState text={t("detail.error")} onRetry={() => void query.refetch()} />}</Scroll>
+        <Scroll>{gone ? <Empty icon="receipt" title={t("detail.gone")} /> : <ErrorState text={t("detail.error")} onRetry={() => void retry()} />}</Scroll>
       </div>
     )
   }
@@ -64,6 +90,7 @@ export function OrderDetail({ id }: { id: string }) {
   const totalQty = items.reduce((s, i) => s + i.quantity, 0)
   const shippedQty = items.reduce((s, i) => s + Number(i.detail?.shipped_quantity ?? 0), 0)
   const a = order.shipping_address
+  const contact = contactLinks(order)
   const shipments = (order.fulfillments ?? []).filter((f) => f.shipped_at && !f.canceled_at)
   const payment = order.payment_collections?.[0]?.payments?.[0]
   const events = [
@@ -75,8 +102,8 @@ export function OrderDetail({ id }: { id: string }) {
   ]
 
   return (
-    <div className="screen">
-      <NavBar back={back} />
+    <div className="screen" data-detail="">
+      <NavBar back={back} title={t("detail.title", { n: `#${order.display_id}` })} />
       <Scroll>
         <div className="largetitle detail-title">
           <h1>{t("detail.title", { n: `#${order.display_id}` })}</h1>
@@ -121,10 +148,12 @@ export function OrderDetail({ id }: { id: string }) {
               </span>
             </div>
             {order.shipping_methods?.[0]?.name ? <div className="kv"><dt>{t("detail.shipping")}</dt><dd>{order.shipping_methods[0].name}</dd></div> : null}
-            {order.email ? <a className="row single" href={`mailto:${order.email}`}><span className="row-main"><span className="row-title reg">{order.email}</span></span></a> : null}
-            {a?.phone ? <a className="row single" href={`tel:${a.phone}`}><span className="row-main"><span className="row-title reg">{a.phone}</span></span></a> : null}
+            {contact.phone ? <a className="row" href={contact.phone.href}><span className="row-main"><span className="row-title reg tint">{contact.phone.text}</span><span className="row-sub">{t("detail.call")}</span></span></a> : null}
+            {contact.email ? <a className="row" href={contact.email.href}><span className="row-main"><span className="row-title reg tint wrap">{contact.email.text}</span><span className="row-sub">{t("detail.mail")}</span></span></a> : null}
           </div>
         </Section>
+
+        <OrderActions shop={shop} order={order} intent={intent.current === "paid" ? "paid" : null} />
 
         <Section id="payment" title={t("detail.payment")}>
           <dl className="group">

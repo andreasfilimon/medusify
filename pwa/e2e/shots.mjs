@@ -1,25 +1,41 @@
 // Screenshots of every screen, light and dark, iPhone 15 profile (390 px wide), against the dev shop.
 // Logs scrollWidth and innerWidth per shot: a horizontal overflow shows up as a difference.
-//   node e2e/shots.mjs
+//   node e2e/shots.mjs                      (docs/shots, 390 px)
+//   SHOT_WIDTH=375 SHOT_OUT=/tmp/x node e2e/shots.mjs   (other width, other folder)
+import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { devices, webkit } from "@playwright/test"
+import { chromium, devices, webkit } from "@playwright/test"
 
 const BASE = process.env.E2E_BASE ?? "http://localhost:9055"
-const out = join(import.meta.dirname, "..", "..", "docs", "shots")
+const WIDTH = Number(process.env.SHOT_WIDTH ?? 390)
+const out = process.env.SHOT_OUT ?? join(import.meta.dirname, "..", "..", "docs", "shots")
 mkdirSync(out, { recursive: true })
 
 const envLine = readFileSync(join(import.meta.dirname, "..", "..", "dev-shop", ".env"), "utf8").split("\n").find((l) => l.startsWith("DEVSHOP_ADMIN_PASSWORD="))
 const adminPassword = envLine.slice("DEVSHOP_ADMIN_PASSWORD=".length).trim()
+// Four fresh demo orders (authorized, paid, paid, shipped) for the order action screens.
+const shopDir = join(import.meta.dirname, "..", "..", "dev-shop")
+execFileSync("npx", ["medusa", "exec", "./src/scripts/seed-demo-actions.ts"], { cwd: shopDir, timeout: 180_000, stdio: "pipe" })
+const actionOrders = JSON.parse(readFileSync(join(shopDir, ".e2e-actions.json"), "utf8"))
 const log = []
-const browser = await webkit.launch()
+// WebKit on Linux draws no backdrop blur (measured 2026-11-19: sharp stripes stay sharp), Chromium does. The glass material
+// is therefore shot in Chromium: SHOT_BROWSER=chromium.
+const browser = await (process.env.SHOT_BROWSER === "chromium" ? chromium : webkit).launch()
 for (const scheme of ["light", "dark"]) {
-  const context = await browser.newContext({ ...devices["iPhone 15"], locale: "de-AT", timezoneId: "Europe/Vienna", viewport: { width: 390, height: 844 }, colorScheme: scheme, serviceWorkers: "block", baseURL: `${BASE}/medusify/` })
+  const context = await browser.newContext({ ...devices["iPhone 15"], locale: "de-AT", timezoneId: "Europe/Vienna", viewport: { width: WIDTH, height: 844 }, colorScheme: scheme, serviceWorkers: "block", baseURL: `${BASE}/medusify/` })
   const page = await context.newPage()
   const shot = async (name) => {
     await page.waitForTimeout(350)
     const m = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth, bodyScroll: document.body.scrollWidth }))
-    log.push({ shot: `${name}-${scheme}`, ...m, ok: m.scrollWidth === m.innerWidth && m.bodyScroll <= m.innerWidth })
+    // Side gutter: no field or button of a screen may touch the edge of the window (a lost padding went unseen once).
+    const gutter = await page.evaluate(() => {
+      const left = [...document.querySelectorAll(".screen input:not([type=checkbox]), .screen .btn, .screen select")]
+        .filter((el) => !el.closest(".sheet") && el.getBoundingClientRect().width > 0)
+        .map((el) => el.getBoundingClientRect())
+      return left.length ? Math.min(...left.map((r) => Math.min(r.left, window.innerWidth - r.right))) : 99
+    })
+    log.push({ shot: `${name}-${scheme}`, ...m, gutter, ok: m.scrollWidth === m.innerWidth && m.bodyScroll <= m.innerWidth && gutter >= 12 })
     await page.screenshot({ path: join(out, `${name}-${scheme}.png`) })
   }
 
@@ -51,6 +67,27 @@ for (const scheme of ["light", "dark"]) {
   await page.locator("a.row").first().click()
   await page.getByText("Kunde und Lieferung").waitFor()
   await shot("05-order-detail")
+
+  // Order actions: the list under "Bearbeiten" of a shipped order, then the sheets.
+  await page.goto(`orders/${actionOrders.ret.id}`)
+  await page.getByRole("heading", { name: "Bearbeiten" }).waitFor()
+  await page.getByRole("heading", { name: "Bearbeiten" }).scrollIntoViewIfNeeded()
+  await shot("11-order-actions")
+  await page.getByRole("button", { name: /Retoure annehmen/ }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "Mehr" }).first().click()
+  await page.getByRole("dialog").getByRole("switch").check()
+  await shot("11d-return")
+  await page.goto(`orders/${actionOrders.refund.id}`)
+  await page.getByRole("button", { name: /Erstatten/ }).click()
+  await page.getByLabel(/Betrag in EUR/).fill("10")
+  await shot("11b-refund-amount")
+  await page.getByRole("button", { name: "Weiter" }).click()
+  await page.getByRole("heading", { name: "Bestätigen" }).waitFor()
+  await shot("11c-refund-confirm")
+  await page.goto(`orders/${actionOrders.cancel.id}`)
+  await page.getByRole("button", { name: "Bestellung stornieren" }).click()
+  await page.getByRole("dialog").waitFor()
+  await shot("11e-cancel")
 
   await page.goto("ship")
   await page.getByLabel("Sendungsnummer", { exact: true }).waitFor()
@@ -96,5 +133,5 @@ for (const scheme of ["light", "dark"]) {
 }
 await browser.close()
 writeFileSync(join(out, "overflow-check.json"), JSON.stringify(log, null, 2) + "\n")
-for (const l of log) console.log(`${l.ok ? "ok  " : "FAIL"} ${l.shot.padEnd(26)} scrollWidth=${l.scrollWidth} innerWidth=${l.innerWidth}`)
+for (const l of log) console.log(`${l.ok ? "ok  " : "FAIL"} ${l.shot.padEnd(26)} scrollWidth=${l.scrollWidth} innerWidth=${l.innerWidth} gutter=${l.gutter}`)
 if (log.some((l) => !l.ok)) process.exit(1)

@@ -1,4 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0A6A86"/>
-  <path d="M120 372V148l136 148 136-148v224" fill="none" stroke="#FFFFFF" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A8FB0"/>
+      <stop offset="1" stop-color="#064F66"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0" r="0.75">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDF1F7"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 10)">
+    <path d="M120 372V148l136 148 136-148v224" stroke="#03212B" stroke-opacity="0.07" stroke-width="76"/>
+    <path d="M120 372V148l136 148 136-148v224" stroke="#03212B" stroke-opacity="0.09" stroke-width="64"/>
+    <path d="M120 372V148l136 148 136-148v224" stroke="#03212B" stroke-opacity="0.12" stroke-width="56"/>
+  </g>
+  <path d="M120 372V148l136 148 136-148v224" fill="none" stroke="url(#ink)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

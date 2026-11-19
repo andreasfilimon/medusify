@@ -5,7 +5,7 @@ import { InstallHint } from "../features/InstallHint"
 import { aggregateRevenue, recentOrders, type Period } from "../lib/dashboard"
 import { currencyName, formatMoney, monthName, timeOfDay } from "../lib/format"
 import { Icon } from "../ui/Icon"
-import { Banner, Empty, ErrorState, Section, Segmented, Skeleton } from "../ui/kit"
+import { Banner, Digits, Empty, ErrorState, Section, Segmented, Skeleton } from "../ui/kit"
 import { NavBar } from "../ui/Nav"
 import { OrderRow } from "../ui/OrderRow"
 import { Scroll } from "../ui/Scroll"
@@ -30,8 +30,8 @@ export function Start() {
 
   return (
     <div className="screen">
-      <NavBar scope title={t("start.title")} subtitle={subtitle} />
-      <Scroll onRefresh={refetchDashboards}>
+      <NavBar scope title={t("start.title")} />
+      <Scroll onRefresh={refetchDashboards} heading={{ title: t("start.title"), subtitle }}>
         {!online && !updated ? <Banner>{t("common.offlineNoData")}</Banner> : null}
         {failed.map((d) => (
           <Banner key={d.shop.id} icon="warning-circle" action={<button className="navbtn" onClick={() => void refetchDashboards()}>{t("common.retry")}</button>}>
@@ -52,7 +52,7 @@ export function Start() {
                     {scoped.filter((s) => toShip[s.id]).map((s) => (
                       <li key={s.id}>
                         {s.name}
-                        <span className="num">{toShip[s.id]}</span>
+                        <Digits className="num" text={String(toShip[s.id])} />
                       </li>
                     ))}
                   </ul>
@@ -80,7 +80,7 @@ export function Start() {
                           {[r.orders !== null ? (r.orders === 1 ? t("start.orders.one") : t("start.orders.many", { n: r.orders })) : null, many ? (r.shops === 1 ? t("start.shops.one") : t("start.shops.many", { n: r.shops })) : null].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <span className="amount big">{formatMoney(r.amount, r.currency, lang)}</span>
+                      <Digits className="amount big" text={formatMoney(r.amount, r.currency, lang)} />
                     </div>
                   ))}
                 </div>

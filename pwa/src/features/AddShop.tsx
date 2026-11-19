@@ -6,6 +6,7 @@ import { defaultShopName, normalizeShopUrl, nextColor, shopIdFromOrigin } from "
 import type { Shop } from "../lib/types"
 import { FieldError } from "../ui/kit"
 import { NavBar } from "../ui/Nav"
+import { Scroll } from "../ui/Scroll"
 import { LoginFlow } from "./LoginFlow"
 
 export function AddShop({ onClose }: { onClose(): void }) {
@@ -57,7 +58,7 @@ export function AddShop({ onClose }: { onClose(): void }) {
   return (
     <div className="screen">
       <NavBar back={{ label: t("tab.more"), onClick: onClose }} title={t("add.title")} />
-      <main className="scroll">
+      <Scroll heading={{ title: t("add.title") }}>
         <form className="form" onSubmit={check} noValidate>
           <label className="field">
             <span>{t("add.address")}</span>
@@ -68,7 +69,7 @@ export function AddShop({ onClose }: { onClose(): void }) {
             {busy ? t("add.checking") : t("add.check")}
           </button>
         </form>
-      </main>
+      </Scroll>
     </div>
   )
 }

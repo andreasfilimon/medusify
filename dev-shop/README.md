@@ -38,4 +38,4 @@ To test the app against a second origin, add `http://127.0.0.1:9055` to `ADMIN_C
 EMAIL=admin@devshop.invalid PASSWORD='<the password>' ../plugin/scripts/smoke-packed.sh
 ```
 
-After a plugin change repeat step 1, run `npm install ./medusify-0.1.0.tgz` and restart the shop.
+After a plugin change repeat step 1, run `npm install ./medusify-0.2.0.tgz` and restart the shop.

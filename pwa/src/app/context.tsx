@@ -1,6 +1,7 @@
 import { QueryCache, QueryClient, QueryClientProvider, useQueries, useQueryClient } from "@tanstack/react-query"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import * as api from "../lib/api"
+import { syncBadge } from "../lib/badge"
 import { ApiError, setTokenSink } from "../lib/api"
 import { deviceTimezone, type Lang } from "../lib/format"
 import { makeT, type Translate } from "../lib/i18n"
@@ -43,6 +44,8 @@ type AppCtx = {
   retryStart(): void
   pushSupport: PushSupport
   pushOn: boolean
+  /** The push endpoint of this device, null when it has no subscription. */
+  currentEndpoint(): Promise<string | null>
   enableNotifications(): Promise<{ kind: "denied" | "failed" | "ok"; results?: ShopPushResult[]; error?: string }>
   registerNewShop(shop: Shop): Promise<ShopPushResult | null>
   sendTestPush(): Promise<{ sent: number; failed: number; reachedShops: number }>
@@ -207,6 +210,14 @@ function Inner({ children }: { children: ReactNode }) {
   const toShip: Record<string, number> = {}
   for (const d of dashboards) if (d.data) toShip[d.shop.id] = d.data.to_ship
   const totalToShip = scoped.reduce((sum, s) => sum + (toShip[s.id] ?? 0), 0)
+  // The number on the app icon: orders to ship over ALL shops (not only the selected one), set whenever the app has read them.
+  const badgeSignature = dashboards.map((d) => `${d.shop.id}|${d.data?.shop_label ?? ""}|${d.data?.to_ship ?? "-"}`).join(";")
+  useEffect(() => {
+    if (status !== "ready") return
+    const fresh = dashboards.flatMap((d) => (d.data ? [{ id: d.shop.id, label: d.data.shop_label ?? d.shop.name, n: d.data.to_ship }] : []))
+    void syncBadge(fresh, authedShops.map((s) => s.id)).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature carries everything the call reads
+  }, [badgeSignature, status])
   const refetchDashboards = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: ["dashboard"] })
   }, [qc])
@@ -349,7 +360,7 @@ function Inner({ children }: { children: ReactNode }) {
     status, shops, scope, scoped, setScope, lang, langPref, setLangPref: (v) => { prefs.setLang(v); setLangPrefState(v) },
     themePref, setThemePref: (v) => { prefs.setTheme(v); setThemePrefState(v) }, t, now, online, dashboards, toShip, totalToShip,
     refetchDashboards, saveShop, dropShop, logout, logoutNote, retryStart: () => setBoot((n) => n + 1),
-    pushSupport: support, pushOn, enableNotifications, registerNewShop, sendTestPush,
+    pushSupport: support, pushOn, currentEndpoint, enableNotifications, registerNewShop, sendTestPush,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

@@ -86,3 +86,26 @@ export function buildReturnRequestedPayload(input: {
     tag: `return-${returnId}`,
   }
 }
+
+export function buildLowStockPayload(input: {
+  storeLabel: string
+  locale: MedusifyLocale
+  inventoryItemId: string
+  productId: string | null
+  /** Product title, with the variant title when the product has more than the default variant. */
+  name: string
+  /** Units that can still be sold over all locations; 0 or less is sold out. */
+  available: number
+}): PushPayload {
+  const { storeLabel, locale, inventoryItemId, productId, name, available } = input
+  const soldOut = available <= 0
+  const heading = soldOut ? (locale === "en" ? "Sold out" : "Ausverkauft") : locale === "en" ? "Low stock" : "Bestand niedrig"
+  const rest = soldOut ? "" : locale === "en" ? ` · ${available} left` : ` · noch ${available}`
+  return {
+    title: `${storeLabel}: ${heading}`,
+    body: `${name}${rest}`,
+    // No `badge`: the number on the icon counts orders to ship, a stock message must not change it.
+    data: { url: productId ? `/medusify/products/${productId}` : "/medusify/products", kind: "low_stock", shop: storeLabel },
+    tag: `low-stock-${inventoryItemId}`,
+  }
+}

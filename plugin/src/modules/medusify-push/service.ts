@@ -2,7 +2,9 @@ import { MedusaService } from "@medusajs/framework/utils"
 import webpush from "web-push"
 import { MAX_CONSECUTIVE_FAILURES } from "../../constants"
 import { type PushKind, wantsKind } from "../../lib/push-kinds"
+import Operation from "./models/operation"
 import PushSubscription from "./models/push-subscription"
+import StockAlert from "./models/stock-alert"
 import { resolveOptions } from "./options"
 import type {
   MedusifyPushOptions,
@@ -18,9 +20,10 @@ type SubscriptionRow = {
   auth: string
   failure_count?: number | null
   disabled_kinds?: string[] | null
+  low_stock_threshold?: number | null
 }
 
-class MedusifyPushModuleService extends MedusaService({ PushSubscription }) {
+class MedusifyPushModuleService extends MedusaService({ PushSubscription, MedusifyOperation: Operation, MedusifyStockAlert: StockAlert }) {
   protected readonly config_: ResolvedMedusifyPushOptions
 
   constructor(container: Record<string, unknown>, options?: MedusifyPushOptions) {
@@ -93,7 +96,9 @@ class MedusifyPushModuleService extends MedusaService({ PushSubscription }) {
    */
   async sendToSubscriptions(
     subscriptions: SubscriptionRow[],
-    payload: PushPayload
+    payload: PushPayload,
+    /** Collects the ids of the subscriptions whose message did not go out but which stay (a passing failure). */
+    failedIds?: string[]
   ): Promise<SendResult> {
     const result: SendResult = { sent: 0, failed: 0, removed: 0 }
     const vapid = this.config_.vapid
@@ -132,6 +137,7 @@ class MedusifyPushModuleService extends MedusaService({ PushSubscription }) {
             return
           }
           result.failed++
+          failedIds?.push(sub.id)
           const next = (sub.failure_count ?? 0) + 1
           if (next >= MAX_CONSECUTIVE_FAILURES) {
             toRemove.push(sub.id)

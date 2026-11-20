@@ -106,6 +106,7 @@ html:not([data-sda]) .screen[data-title] .scroll-body > .largetitle { opacity: 0
 .row-title.wrap { white-space: normal; }
 .row-sub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: var(--fs-subhead); line-height: var(--lh-subhead); color: var(--label-2); overflow: hidden; }
 .row-end { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.row-end.inline { flex-direction: row; align-items: center; gap: var(--space-2); }
 .amount { font-size: var(--fs-body); font-weight: 600; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; white-space: nowrap; }
 .d.roll { display: inline-block; animation: digit-in var(--dur-spring-settle) var(--ease-spring-settle) both; }
 @keyframes digit-in { from { opacity: 0; transform: translateY(0.4em); } to { opacity: 1; transform: none; } }
@@ -425,3 +426,62 @@ html[data-vt="tab"]::view-transition-group(tabbar) { animation: none; }
 @keyframes vt-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
+
+/* Katalog und Bestand (Stufe 2): Produktliste, Detail, Scanner, Schnell anlegen */
+.navtrail { display: inline-flex; align-items: center; }
+.thumb.prod { width: 44px; height: 44px; overflow: hidden; }
+.thumb.prod img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stock { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-chip); background: var(--surface-2); color: var(--label-2); font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stock.none { background: none; padding: 0; font-weight: 500; color: var(--label-3); }
+.stock[data-low="low"] { background: var(--warn-bg); color: var(--warn-ink); }
+.stock[data-low="out"] { background: var(--danger-bg); color: var(--danger-ink); }
+.prod-head { display: flex; align-items: center; gap: var(--space-3); margin: 0 max(var(--space-4), var(--safe-left)) var(--space-2); padding: var(--space-2) 0; }
+.prod-head .thumb.prod { width: 64px; height: 64px; border-radius: var(--radius-group); }
+.prod-head .row-title { white-space: normal; font-size: var(--fs-title-3, 1.25rem); line-height: 1.25; }
+.row-switch { padding: var(--space-2) var(--space-4); }
+.row-switch[disabled] { opacity: 0.5; }
+.row-switch .row-main { text-align: left; }
+.row-switch[aria-checked="true"] .track { background: var(--tint); }
+.row-switch[aria-checked="true"] .track::after { transform: translateX(20px); }
+.section-head.sub { padding-left: calc(var(--space-4) + 16px); margin-top: var(--space-2); }
+.section-head h3 { font-size: var(--fs-footnote); font-weight: 600; color: var(--label-2); }
+.group .kv dt { color: var(--label-2); font-size: var(--fs-subhead); }
+.group .kv dd { font-size: var(--fs-subhead); text-align: right; }
+.group > .note { padding-top: var(--space-2); padding-bottom: var(--space-3); }
+.level { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-2) var(--space-3); min-height: var(--size-row); padding: var(--space-2) var(--space-4); }
+.level + .level::before, .levels > .level + .row::before { content: ""; position: absolute; left: var(--space-4); right: 0; top: 0; height: 0.5px; background: var(--separator); }
+.level-main { min-width: 0; }
+.level-fixed { font-size: var(--fs-headline); font-weight: 600; font-variant-numeric: tabular-nums; }
+.level-save { grid-column: 1 / -1; display: flex; gap: var(--space-2); }
+.level-save .btn { min-height: 44px; }
+.level-save .btn.quiet { width: auto; margin-top: 0; }
+.level .field-error, .level > [role="alert"] { grid-column: 1 / -1; }
+.row.add .thumb { color: var(--tint); background: var(--tint-soft); }
+.stepper .step-value { width: auto; min-width: 3rem; height: 44px; padding: 0 var(--space-2); border-radius: var(--radius-field); background: none; color: var(--label); font-size: var(--fs-headline); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stepper output.step-value { display: inline-flex; align-items: center; justify-content: center; }
+.search.in-sheet { margin: 0 0 var(--space-3); }
+
+.scan-controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); padding: var(--space-2) max(var(--space-4), var(--safe-left)) var(--space-3); }
+.scan-controls .field.inline { margin: 0; flex: 1; min-width: 9rem; }
+.viewfinder.tall { height: 240px; margin: 0 max(var(--space-4), var(--safe-left)); }
+.cam-off { margin-left: max(var(--space-4), var(--safe-left)); margin-right: max(var(--space-4), var(--safe-left)); }
+.scan-type { margin-bottom: var(--space-2); }
+.scan-row { gap: var(--space-3); }
+/* A long name wraps to a second line instead of being cut after four letters next to the stepper. */
+.scan-row .row-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.scan-row[data-status="sending"] .row-title { opacity: 0.6; }
+.scan-row[data-status="undone"] { opacity: 0.55; }
+.scan-row[data-status="undone"] .row-title { text-decoration: line-through; }
+.scan-row[data-status="failed"] .row-sub { color: var(--danger-ink); }
+.scan-row .field-error { margin-top: var(--space-1); }
+.scroll-body > .btn, .section > .btn { margin: var(--space-3) max(var(--space-4), var(--safe-left)) 0; width: calc(100% - 2 * max(var(--space-4), var(--safe-left))); }
+
+.new-product .photo { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-2); flex-wrap: wrap; }
+.photo-tile { width: 96px; height: 96px; border-radius: var(--radius-group); background: var(--surface); color: var(--label-3); display: grid; place-items: center; overflow: hidden; flex: none; }
+.photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.photo-actions .btn { min-height: 44px; cursor: default; }
+.photo-actions .btn.quiet { margin-top: 0; }
+.new-product > .btn { margin-top: var(--space-5); margin-bottom: var(--space-6); }
+.new-product .field .segmented { display: flex; }
+.new-product .field .segmented button { flex: 1; }

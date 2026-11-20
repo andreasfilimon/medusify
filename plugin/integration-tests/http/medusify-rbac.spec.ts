@@ -1,8 +1,10 @@
 import { MedusaModule } from "@medusajs/framework/modules-sdk"
 import { Modules } from "@medusajs/framework/utils"
 import { MEDUSIFY_PUSH_MODULE } from "../../src/constants"
+import lowStockReservationPushHandler from "../../src/subscribers/low-stock-reservation-push"
 import orderPlacedPushHandler from "../../src/subscribers/order-placed-push"
 import { createAdmin, sub } from "../helpers/admin"
+import { createCatalogProduct, createLocation } from "../helpers/catalog"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { createDemoOrder, createRegion, fulfillDemoItems, refundDemoOrder } from "../helpers/orders"
 import { rbacRunner } from "../helpers/rbac-license"
@@ -118,8 +120,9 @@ runner({
 
       describe("the app's actions (permissions and the return route)", () => {
         const RETURN_RIGHTS = ["return:create", "return:update", "order:update"]
-        const ALL = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true }
-        const NONE = { capture: false, mark_paid: false, cancel: false, cancel_refunding: false, deliver: false, refund: false, return: false, ship: false }
+        const CATALOG_KEYS = ["catalog", "variant_edit", "product_status", "stock", "stock_new_level", "product_create", "upload", "stock_read"]
+        const ALL = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true, ...Object.fromEntries(CATALOG_KEYS.map((k) => [k, true])) }
+        const NONE = { capture: false, mark_paid: false, cancel: false, cancel_refunding: false, deliver: false, refund: false, return: false, ship: false, ...Object.fromEntries(CATALOG_KEYS.map((k) => [k, false])) }
         const actionsOf = async (who: { headers: Record<string, string> }) =>
           (await api.get("/admin/medusify/permissions", { headers: who.headers })).data.actions
 
@@ -140,6 +143,17 @@ runner({
             ["half of return (no return:create)", ["return:update", "order:update"], { cancel: true }],
             ["ship", ["fulfillment:create", "fulfillment:update", "order:update"], { ship: true, deliver: true, cancel: true }],
             ["half of ship (no fulfillment:create)", ["fulfillment:update", "order:update"], { deliver: true, cancel: true }],
+            ["catalog", ["product:read", "product_variant:read"], { catalog: true }],
+            ["half of catalog (no product_variant:read)", ["product:read"], {}],
+            ["variant_edit", ["product_variant:update", "product:update"], { variant_edit: true, product_status: true }],
+            ["product_status alone", ["product:update"], { product_status: true }],
+            ["stock", ["inventory_item:read", "inventory_level:update"], { stock: true }],
+            ["half of stock (no inventory_item:read)", ["inventory_level:update"], {}],
+            ["stock_new_level", ["inventory_level:create"], { stock_new_level: true }],
+            ["stock_read", ["product:read", "inventory_item:read"], { stock_read: true }],
+            ["product_create", ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create", "sales_channel:update"], { product_create: true, stock_new_level: true }],
+            ["half of product_create (no sales_channel:update)", ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create"], { stock_new_level: true }],
+            ["upload", ["file:create"], { upload: true }],
           ]
           for (const [n, [name, keys, on]] of cases.entries()) {
             const who = await createAdmin(getContainer(), `case${n}@example.invalid`)
@@ -155,7 +169,7 @@ runner({
           const upd = await createAdmin(getContainer(), "wild-upd@example.invalid")
           await giveRole(upd.userId, "every-update", ["*:update"])
           // updates only: needs create for capture, refund and return
-          expect(await actionsOf(upd)).toEqual({ ...NONE, mark_paid: true, cancel: true, deliver: true })
+          expect(await actionsOf(upd)).toEqual({ ...NONE, mark_paid: true, cancel: true, deliver: true, variant_edit: true, product_status: true })
           // order:* covers only the order half of each action, so none of the two-part actions without the other half
           const ord = await createAdmin(getContainer(), "wild-ord@example.invalid")
           await giveRole(ord.userId, "all-order", ["order:*"])
@@ -232,6 +246,111 @@ runner({
           const refunded = await api.post("/admin/medusify/returns", body({ refund_amount: 5 }), { headers: withRefund.headers })
           expect(refunded.status).toBe(201)
           expect(refunded.data.refunded).toBe(5)
+        })
+      })
+
+      describe("catalog and stock routes", () => {
+        let locA: string
+        let locB: string
+        let item: Awaited<ReturnType<typeof createCatalogProduct>>
+        const as = async (name: string, keys: string[]) => {
+          const who = await createAdmin(getContainer(), `${name}@example.invalid`)
+          if (keys.length) await giveRole(who.userId, `role-${name}`, keys)
+          return who
+        }
+        const stockOf = async (itemId: string, loc: string) => {
+          const query = getContainer().resolve(ContainerRegistrationKeys.QUERY)
+          const { data } = await query.graph({ entity: "inventory_level", fields: ["stocked_quantity"], filters: { inventory_item_id: itemId, location_id: loc } })
+          return data[0] ? Number((data[0] as any).stocked_quantity) : undefined
+        }
+
+        beforeEach(async () => {
+          locA = await createLocation(getContainer(), "Lager Wien")
+          locB = await createLocation(getContainer(), "Lager Graz")
+          item = await createCatalogProduct(getContainer(), { barcode: "4006381333931", levels: [{ location_id: locA, quantity: 10 }] })
+        })
+
+        it("list, detail and barcode lookup need the catalog rights, and nothing else opens them", async () => {
+          const catalog = await as("catalog", ["product:read", "product_variant:read"])
+          const half = await as("half", ["product:read"])
+          const stockOnly = await as("stockonly", ["inventory_item:read", "inventory_level:update"])
+          for (const url of ["/admin/medusify/products", `/admin/medusify/products/${item.productId}`, "/admin/medusify/variants/lookup?code=4006381333931"]) {
+            expect((await api.get(url, { headers: catalog.headers })).status).toBe(200)
+            for (const who of [half, stockOnly, noRole]) {
+              await expect(api.get(url, { headers: who.headers })).rejects.toMatchObject({ response: { status: 403 } })
+            }
+          }
+        })
+
+        it("the stock is in the catalog answer only for a user who may read stock (inventory_item:read)", async () => {
+          const catalog = await as("catalog-nostock", ["product:read", "product_variant:read"])
+          const stocker = await as("catalog-stock", ["product:read", "product_variant:read", "inventory_item:read"])
+          const variantsOf = async (url: string, who: { headers: Record<string, string> }) => {
+            const data = (await api.get(url, { headers: who.headers })).data
+            if (data.product) return data.product.variants
+            if (data.matches) return data.matches.map((m: any) => m.variant)
+            return data.products.find((p: any) => p.id === item.productId).variants
+          }
+          for (const url of ["/admin/medusify/products", `/admin/medusify/products/${item.productId}`, "/admin/medusify/variants/lookup?code=4006381333931"]) {
+            const [hidden] = await variantsOf(url, catalog)
+            expect({ url, inventory: hidden.inventory, stock_total: hidden.stock_total, stock_hidden: hidden.stock_hidden, stock_editable: hidden.stock_editable }).toEqual({
+              url,
+              inventory: [],
+              stock_total: null,
+              stock_hidden: true,
+              stock_editable: false,
+            })
+            const [shown] = await variantsOf(url, stocker)
+            expect({ url, stock_total: shown.stock_total, stock_hidden: shown.stock_hidden, stocked: shown.inventory[0].levels[0].stocked }).toEqual({ url, stock_total: 10, stock_hidden: false, stocked: 10 })
+          }
+        })
+
+        it("a price needs the variant update rights, and nothing is written without them", async () => {
+          const editor = await as("editor", ["product_variant:update", "product:update"])
+          const half = await as("halfeditor", ["product_variant:update"])
+          const url = `/admin/medusify/variants/${item.variantId}/price`
+          await expect(api.post(url, { currency_code: "eur", amount: 99 }, { headers: half.headers })).rejects.toMatchObject({ response: { status: 403 } })
+          await expect(api.post(url, { currency_code: "eur", amount: 99 }, { headers: reader.headers })).rejects.toMatchObject({ response: { status: 403 } })
+          expect((await api.post(url, { currency_code: "eur", amount: 99 }, { headers: editor.headers })).data.prices[0].amount).toBe(99)
+        })
+
+        it("a count needs the stock rights; a new level at a location needs the right to create levels on top, and is refused whole", async () => {
+          const counter = await as("counter", ["inventory_item:read", "inventory_level:update"])
+          const creator = await as("creator", ["inventory_item:read", "inventory_level:update", "inventory_level:create"])
+          const half = await as("halfcounter", ["inventory_level:update"])
+          const body = (loc: string, key: string) => ({ mode: "set", inventory_item_id: item.inventoryItemId, location_id: loc, quantity: 4, idempotency_key: key })
+          await expect(api.post("/admin/medusify/inventory", body(locA, "rbac-key-0001"), { headers: half.headers })).rejects.toMatchObject({ response: { status: 403 } })
+          expect((await api.post("/admin/medusify/inventory", body(locA, "rbac-key-0002"), { headers: counter.headers })).data.stocked).toBe(4)
+          // no level at Graz yet: the counter may not create one, nothing is created and the key is not used up
+          const refused = await api.post("/admin/medusify/inventory", body(locB, "rbac-key-0003"), { headers: counter.headers }).catch((e) => e.response)
+          expect(refused.status).toBe(403)
+          expect(await stockOf(item.inventoryItemId!, locB)).toBeUndefined()
+          const ok = await api.post("/admin/medusify/inventory", body(locB, "rbac-key-0003"), { headers: creator.headers })
+          expect(ok.data).toMatchObject({ stocked: 4, replayed: false })
+          expect(await stockOf(item.inventoryItemId!, locB)).toBe(4)
+        })
+
+        it("quick create needs all rights Medusa asks for when it makes a product, variant, item, level and sales-channel link", async () => {
+          const all = ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create", "sales_channel:update"]
+          const full = await as("creator-all", all)
+          const missing = await as("creator-missing", all.slice(0, 4))
+          const b = (key: string) => ({ title: "Neue Kerze", status: "draft", price: { currency_code: "eur", amount: 5 }, stock: { location_id: locA, quantity: 1 }, idempotency_key: key })
+          await expect(api.post("/admin/medusify/products", b("rbac-new-0001"), { headers: missing.headers })).rejects.toMatchObject({ response: { status: 403 } })
+          expect((await api.post("/admin/medusify/products", b("rbac-new-0001"), { headers: full.headers })).status).toBe(201)
+        })
+
+        it("the low-stock push goes only to users who may read products and their stock", async () => {
+          const may = await as("may-read-stock", ["product:read", "inventory_item:read"])
+          const mayNot = await as("may-not", ["product:read"])
+          const service = getContainer().resolve(MEDUSIFY_PUSH_MODULE) as any
+          const seed = (n: number, userId: string) => service.createPushSubscriptions({ endpoint: sub(n).endpoint, p256dh: sub(n).keys.p256dh, auth: sub(n).keys.auth, user_id: userId })
+          await seed(1, may.userId)
+          await seed(2, mayNot.userId)
+          await seed(3, noRole.userId)
+          const r = await getContainer().resolve(Modules.INVENTORY).createReservationItems({ inventory_item_id: item.inventoryItemId, location_id: locA, quantity: 8 })
+          await lowStockReservationPushHandler({ event: { name: "reservation-item.created", data: { id: (r as any).id } }, container: getContainer(), pluginOptions: {} } as any)
+          expect(sendNotification).toHaveBeenCalledTimes(1)
+          expect(sendNotification.mock.calls[0][0].endpoint).toBe(sub(1).endpoint)
         })
       })
 

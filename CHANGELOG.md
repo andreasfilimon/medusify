@@ -2,6 +2,43 @@
 
 All notable changes to Medusify. The plugin (`medusify`) and the app in `pwa/` share one version number.
 
+## 0.3.0 - 2026-11-20
+
+Stage 2: catalog and stock. The app lists products, changes prices and stock, scans barcodes, creates a product with a
+photo, and warns when stock is low. Needs plugin and app at 0.3.0; an app on a shop with an older plugin shows a note on
+the Products tab and works as before everywhere else.
+
+### Added
+
+- **Products tab** (a fourth tab) with search by name, SKU and barcode, a thumbnail, price and a stock chip per product.
+  Plugin routes `GET /admin/medusify/products`, `GET /admin/medusify/products/:id`, `GET /admin/medusify/variants/lookup`.
+- **Product detail**: change the plain price of a currency (`POST /admin/medusify/variants/:id/price`; the plugin sends
+  Medusa the whole price list under a lock per variant, because Medusa's update deletes every price that is not in the
+  list), count or change the stock per location with a stepper and one save (`POST /admin/medusify/inventory`, always
+  with an `idempotency_key`; a repeat changes nothing), start the stock at a new location, and a switch for draft or
+  visible.
+- **Scanner mode**: "+1 pro Scan" books one unit per scan with an undo and a resend after a lost answer; "Zählen" counts
+  first, per product and place, and writes the counts when applied; scans that arrive while it writes stay for the next apply. A code that matches several products asks which one, and an unknown code can be
+  assigned to a product, which writes it to the variant's barcode. Kits and variants without stock tracking are not counted.
+- **Quick create** (`POST /admin/medusify/products`): photo (scaled to 1600 px, uploaded through Medusa's file module),
+  name, price, starting stock, location, draft or published, as one workflow that rolls back as a whole.
+- **Low-stock push**, a third optional push kind, on by default. A device gets one message per product in a rolling 24
+  hours when the sellable units fall to its threshold (More, default 5, 0 to 9999); a message that failed does not count.
+  Counts made in the app do not trigger it. Tapping the message opens the product. `GET`/`POST /admin/medusify/push-preferences` now also carry `low_stock` and `low_stock_threshold`.
+- Eight rights in `GET /admin/medusify/permissions`: `catalog`, `variant_edit`, `product_status`, `stock`,
+  `stock_new_level`, `product_create`, `upload`, `stock_read` (all through `authorizeIfAvailable`, so Medusa 2.22.0 to
+  2.22.2 and shops without RBAC behave as before).
+- Stock follows Medusa's own right: the catalog answers carry stock only for a role with `inventory_item:read`; otherwise
+  `stock_hidden: true` and the app says the role may not see stock.
+- Two tables (`medusify_operation`, `medusify_stock_alert`) and a column (`medusify_push_subscription.low_stock_threshold`):
+  run `medusa db:migrate` after the update.
+
+### Fixed
+
+- The sign-out notice no longer promises a fixed 10-hour expiry for a session the shop could not end. Shops can set
+  their own session lifetime (`sessionOptions.ttl`, optionally `rolling`), so the text names the shop's lifetime and
+  Medusa's 10-hour default.
+
 ## 0.2.3 - 2026-11-19
 
 ### Changed

@@ -2,11 +2,11 @@ import { fromMinor, toMinor } from "./amount"
 import type { Order, Payment } from "./types"
 
 /** The actions the app can do on an order. The keys are the ones the plugin's permissions route answers with. */
-export const ACTION_KEYS = ["capture", "mark_paid", "cancel", "cancel_refunding", "deliver", "refund", "return", "ship"] as const
+export const ACTION_KEYS = ["capture", "mark_paid", "cancel", "cancel_refunding", "deliver", "refund", "return", "ship", "catalog", "variant_edit", "product_status", "stock", "stock_new_level", "product_create", "upload", "stock_read"] as const
 export type ActionKey = (typeof ACTION_KEYS)[number]
 export type Permissions = Record<ActionKey, boolean>
 
-export const ALL_ALLOWED: Permissions = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true }
+export const ALL_ALLOWED: Permissions = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true, catalog: true, variant_edit: true, product_status: true, stock: true, stock_new_level: true, product_create: true, upload: true, stock_read: true }
 
 /** The order statuses in which Medusa lets an order be canceled (a completed order has to go through a return). */
 const CANCELABLE = new Set(["pending", "requires_action"])

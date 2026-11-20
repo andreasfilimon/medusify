@@ -8,7 +8,11 @@ import { markNavigated } from "../lib/nav"
 import { kindOf, viewTransition } from "../lib/transition"
 import { More } from "../screens/More"
 import { OrderDetail } from "../screens/OrderDetail"
+import { NewProduct } from "../screens/NewProduct"
 import { Orders } from "../screens/Orders"
+import { ProductDetail, ProductLink } from "../screens/ProductDetail"
+import { Products } from "../screens/Products"
+import { Scanner } from "../screens/Scanner"
 import { ShipQueue } from "../screens/ShipQueue"
 import { Start } from "../screens/Start"
 import { Empty } from "../ui/kit"
@@ -35,7 +39,7 @@ export function App() {
 }
 
 /** Sub pages carry their own back button and an action dock, so the tab bar steps aside there. */
-const NO_TABS = /^\/(orders\/[^/]+|ship|more\/add)(\/|$)/
+const NO_TABS = /^\/(orders\/[^/]+|ship|more\/add|products\/.+)(\/|$)/
 
 function Shell() {
   const { status, shops, t, retryStart, logoutNote } = useApp()
@@ -76,6 +80,12 @@ function Shell() {
         <Route path="/orders"><Orders /></Route>
         <Route path="/orders/:id">{(p) => <OrderDetail id={decodeURIComponent(p.id)} />}</Route>
         <Route path="/ship"><ShipQueue /></Route>
+        <Route path="/products"><Products /></Route>
+        <Route path="/products/scan/:shop">{(p) => <Scanner shopId={decodeURIComponent(p.shop)} />}</Route>
+        <Route path="/products/new/:shop">{(p) => <NewProduct shopId={decodeURIComponent(p.shop)} />}</Route>
+        <Route path="/products/:shop/:id">{(p) => <ProductDetail shopId={decodeURIComponent(p.shop)} id={decodeURIComponent(p.id)} />}</Route>
+        {/* The low-stock push opens /products/<id>: the plugin knows the product, not the app's shop id. */}
+        <Route path="/products/:id">{(p) => <ProductLink id={decodeURIComponent(p.id)} />}</Route>
         <Route path="/more"><More /></Route>
         <Route path="/more/add"><AddShop onClose={() => navigate("/more")} /></Route>
         <Route><Redirect to="/" replace /></Route>

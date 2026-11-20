@@ -16,7 +16,12 @@ import { medusifyStaticMiddleware } from "../lib/static"
 import {
   DeletePushSubscription,
   GetDashboardQuery,
+  GetLookupQuery,
+  GetProductsQuery,
   GetPushPreferencesQuery,
+  PostInventory,
+  PostPrice,
+  PostProduct,
   PostPushPreference,
   PostPushSubscription,
   PostReturn,
@@ -100,6 +105,39 @@ const routes: MiddlewareRoute[] = [
     matcher: "/admin/orders/:id/cancel",
     method: "POST",
     middlewares: [strictCancelMiddleware],
+  },
+  {
+    matcher: "/admin/medusify/products",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.catalog]), validateAndTransformQuery(GetProductsQuery, {})],
+  },
+  {
+    matcher: "/admin/medusify/products",
+    method: "POST",
+    // The rights Medusa asks for when it creates a product, its variant and the stock. The photo upload is its own route.
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.product_create]), validateAndTransformBody(PostProduct)],
+  },
+  {
+    matcher: "/admin/medusify/products/:id",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.catalog])],
+  },
+  {
+    // A scan needs the catalog and the stock of the product it finds.
+    matcher: "/admin/medusify/variants/lookup",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.catalog]), validateAndTransformQuery(GetLookupQuery, {})],
+  },
+  {
+    matcher: "/admin/medusify/variants/:id/price",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.variant_edit]), validateAndTransformBody(PostPrice)],
+  },
+  {
+    // Creating a missing level at a location needs one more right; that is checked in the handler.
+    matcher: "/admin/medusify/inventory",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.stock]), validateAndTransformBody(PostInventory)],
   },
   {
     matcher: "/admin/medusify/dashboard",

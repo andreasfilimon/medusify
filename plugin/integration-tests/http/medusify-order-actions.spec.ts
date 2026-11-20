@@ -319,22 +319,23 @@ medusaIntegrationTestRunner({
           await seed(2, admin.userId)
           const q = encodeURIComponent(sub(1).endpoint)
           expect((await api.get(`/admin/medusify/push-preferences?endpoint=${q}`, { headers: admin.headers })).data).toEqual({
-            kinds: { canceled: true, return_requested: true },
+            kinds: { canceled: true, return_requested: true, low_stock: true },
+            low_stock_threshold: 5,
           })
           const off = await api.post(
             "/admin/medusify/push-preferences",
             { endpoint: sub(1).endpoint, kind: "canceled", enabled: false },
             { headers: admin.headers }
           )
-          expect(off.data).toEqual({ kinds: { canceled: false, return_requested: true } })
+          expect(off.data).toEqual({ kinds: { canceled: false, return_requested: true, low_stock: true }, low_stock_threshold: 5 })
           const other = await api.get(`/admin/medusify/push-preferences?endpoint=${encodeURIComponent(sub(2).endpoint)}`, { headers: admin.headers })
-          expect(other.data.kinds).toEqual({ canceled: true, return_requested: true })
+          expect(other.data.kinds).toEqual({ canceled: true, return_requested: true, low_stock: true })
           const on = await api.post(
             "/admin/medusify/push-preferences",
             { endpoint: sub(1).endpoint, kind: "canceled", enabled: true },
             { headers: admin.headers }
           )
-          expect(on.data.kinds).toEqual({ canceled: true, return_requested: true })
+          expect(on.data.kinds).toEqual({ canceled: true, return_requested: true, low_stock: true })
         })
 
         it("two switches at the same moment both stay (no lost update)", async () => {
@@ -366,6 +367,25 @@ medusaIntegrationTestRunner({
             api.get(`/admin/medusify/push-preferences?endpoint=${encodeURIComponent(sub(1).endpoint)}`, { headers: admin.headers })
           ).rejects.toMatchObject({ response: { status: 404 } })
           expect((await service().listPushSubscriptions({ endpoint: sub(1).endpoint }))[0].disabled_kinds).toEqual([])
+        })
+
+        it("the low-stock kind switches like the others, and its threshold is kept per device", async () => {
+          await seed(1, admin.userId)
+          await seed(2, admin.userId)
+          const post = (endpoint: string, body: Record<string, unknown>) => api.post("/admin/medusify/push-preferences", { endpoint, ...body }, { headers: admin.headers })
+          const off = await post(sub(1).endpoint, { kind: "low_stock", enabled: false })
+          expect(off.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: false }, low_stock_threshold: 5 })
+          const set = await post(sub(1).endpoint, { low_stock_threshold: 12 })
+          // the threshold does not touch the switches, and the switch does not touch the threshold
+          expect(set.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: false }, low_stock_threshold: 12 })
+          const other = await api.get(`/admin/medusify/push-preferences?endpoint=${encodeURIComponent(sub(2).endpoint)}`, { headers: admin.headers })
+          expect(other.data.low_stock_threshold).toBe(5)
+          expect((await post(sub(1).endpoint, { low_stock_threshold: 0 })).data.low_stock_threshold).toBe(0)
+          for (const bad of [-1, 10000, 2.5, "7"]) {
+            await expect(post(sub(1).endpoint, { low_stock_threshold: bad })).rejects.toMatchObject({ response: { status: 400 } })
+          }
+          expect((await service().listPushSubscriptions({ endpoint: sub(1).endpoint }))[0].low_stock_threshold).toBe(0)
+          await expect(post(sub(9).endpoint, { low_stock_threshold: 3 })).rejects.toMatchObject({ response: { status: 404 } })
         })
 
         it("a device that is not subscribed gets 404, not a made-up answer", async () => {
@@ -477,7 +497,10 @@ medusaIntegrationTestRunner({
       describe("GET /admin/medusify/permissions", () => {
         it("without roles every action is allowed", async () => {
           const res = await api.get("/admin/medusify/permissions", { headers: admin.headers })
-          expect(res.data.actions).toEqual({ capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true })
+          expect(res.data.actions).toEqual({
+            capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true,
+            catalog: true, variant_edit: true, product_status: true, stock: true, stock_new_level: true, product_create: true, upload: true, stock_read: true,
+          })
         })
 
         it("needs a login", async () => {

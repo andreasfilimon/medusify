@@ -92,9 +92,15 @@ MFA login is required whenever you enforce it). Without login every one of them 
 | `DELETE /admin/medusify/push-subscriptions` | Remove the caller's subscription: body `{ endpoint }` or `?endpoint=`. Only your own. |
 | `POST /admin/medusify/push-subscriptions/test` | Send a test push to the caller's own devices → `{ sent, failed, removed }` |
 | `GET /admin/medusify/dashboard?tz=Europe/Vienna` | `shop_label` (the name push titles carry), revenue (per currency) and order counts for today and this month in the given time zone, `to_ship`, `recent_orders` (10) |
-| `GET /admin/medusify/push-preferences?endpoint=` | Which optional push kinds this device gets → `{ kinds: { canceled, return_requested } }`. Only your own device, otherwise `404`. |
-| `POST /admin/medusify/push-preferences` | Switch one optional kind for this device: `{ endpoint, kind: "canceled" \| "return_requested", enabled }` → `{ kinds }`. Only your own device. |
-| `GET /admin/medusify/permissions` | What the signed-in user may do in the app → `{ actions: { capture, mark_paid, cancel, cancel_refunding, deliver, refund, return } }` (booleans) |
+| `GET /admin/medusify/push-preferences?endpoint=` | Which optional push kinds this device gets, and from how many units the low-stock message comes → `{ kinds: { canceled, return_requested, low_stock }, low_stock_threshold }`. Only your own device, otherwise `404`. |
+| `POST /admin/medusify/push-preferences` | Switch one optional kind for this device: `{ endpoint, kind: "canceled" \| "return_requested" \| "low_stock", enabled }`, or set the threshold: `{ endpoint, low_stock_threshold }` (whole number 0 to 9999) → `{ kinds, low_stock_threshold }`. Only your own device. |
+| `GET /admin/medusify/permissions` | What the signed-in user may do in the app → `{ actions: { capture, mark_paid, cancel, cancel_refunding, deliver, refund, return, ship, catalog, variant_edit, product_status, stock, stock_new_level, product_create, upload, stock_read } }` (booleans) |
+| `GET /admin/medusify/products?q=&offset=&limit=` | The catalog for the phone: products with variants, plain and rule prices, and stock per location (stocked, reserved, available, incoming) → `{ products, count, offset, limit }`. `q` searches title, SKU and barcode. |
+| `GET /admin/medusify/products/:id` | One product in the same shape → `{ product }`; `404 medusify:no_product` |
+| `GET /admin/medusify/variants/lookup?code=` | The variants a scanned code belongs to, matched in the order barcode, SKU, EAN, UPC (a UPC-A also matches its EAN-13 twin with a leading 0) → `{ matches: [{ product, variant, matched_by }] }`. Longer than 128 characters is a `400`. |
+| `POST /admin/medusify/variants/:id/price` | Set the plain price of one currency: `{ currency_code, amount }` (amount in the main unit, at most the currency's decimals) → `{ prices }`. The variant's other prices, region prices and tiers stay (see "Catalog and stock"). |
+| `POST /admin/medusify/inventory` | One stock change, always with an `idempotency_key` (8+ characters): `{ mode: "adjust", inventory_item_id, location_id, quantity }` (a difference), `{ mode: "set", … }` (a count) or `{ mode: "undo", undo_of: <key> }` → `{ stocked, reserved, available, delta, replayed }`. A repeat of a key changes nothing and answers `replayed: true`. |
+| `POST /admin/medusify/products` | Quick create: one product with one variant, a price, an optional photo address and the stock at one location, in one workflow: `{ title, status: "draft" \| "published", price: { currency_code, amount }, stock: { location_id, quantity }, image_url?, idempotency_key }` → `201 { product_id, variant_id, replayed }`; a repeat of the key is `200` with the same product. |
 | `POST /admin/medusify/returns` | Accept a return: `{ order_id, items: [{ id, quantity }], refund_amount?, note?, idempotency_key? }` → `201 { return_id, order_id, refunded }`. The same `idempotency_key` for the same order and content answers with the first return (`200`, no second return, no second refund); the same key with other content is a `409`. |
 | `POST /admin/medusify/orders/:id/cancel` | Cancel an order like Medusa's own route, plus one check: if captured money would be refunded by it, the caller needs the refund right as well. The app uses this route. |
 | `GET /medusify/*` | The PWA (public static files, no auth) |
@@ -172,6 +178,52 @@ them, confirm the receipt, and, with `refund_amount`, refund. Before anything is
 were shipped and are not on another return, and that the refund is not more than what is still refundable. A return made
 this way carries `metadata.medusify_source = "app"`. The plugin sends no "return requested" push for it, since the person who entered it is already looking at it.
 
+### Catalog and stock
+
+Stage 2 of the app (plugin 0.3.0) lists products, changes a price or the stock, scans barcodes and creates a product.
+Everything the app can do with Medusa's own routes it does with them (product status, variant barcode, photo upload); the
+plugin adds the routes the app cannot do safely itself.
+
+| Action | Rights (all of them) |
+| --- | --- |
+| See products, detail, barcode lookup (`catalog`) | `product:read`, `product_variant:read` |
+| Change a price or a barcode (`variant_edit`) | `product_variant:update`, `product:update` |
+| Draft or visible (`product_status`) | `product:update` |
+| Count or change stock (`stock`) | `inventory_item:read`, `inventory_level:update` |
+| First count at a new location (`stock_new_level`) | `inventory_level:create` |
+| Quick create (`product_create`) | `product:create`, `product_variant:create`, `inventory_item:create`, `inventory_level:create`, `sales_channel:update` |
+| Photo of a new product (`upload`) | `file:create` |
+| Receives the low-stock push (`stock_read`) | `product:read`, `inventory_item:read` |
+
+The plugin's routes use `authorizeIfAvailable` like the order routes: with the RBAC module they ask for the rights above,
+without it (or on Medusa 2.22.0 to 2.22.2) every admin may, as before. A role without `catalog` sees an empty state in
+the app, and the scanner and the new-product screen refuse the roles that lack their rights before anything is sent.
+Stock is guarded like in Medusa: list, detail and lookup carry stock levels and totals only for a role with
+`inventory_item:read`. Without it every variant comes with `stock_hidden: true`, no levels and no total.
+
+**Prices.** Medusa's price update replaces the prices of a variant with the list it is given and deletes the ones that are
+not in it. The route therefore reads the whole list under a lock per variant and sends it back with only the one base price
+changed: other currencies, region prices and quantity tiers stay, two phones changing two currencies at once do not drop
+each other's change. Only a *base* price (no rule, no quantity tier) can be changed here; the rest is shown as read-only
+and stays for the Medusa admin. Prices of a price list (a sale, a customer-group list) belong to their list: they are not
+shown as the variant's price and not sent back, which is also what Medusa's update expects. An amount with more decimals than the currency has is refused (`400 medusify:amount_decimals`).
+
+**Stock.** The app counts what the Medusa admin calls "stocked quantity". `adjust` and `undo` change it by a difference
+with Medusa's atomic adjustment, so a scan on one phone and a count on another do not overwrite each other. `set` is a
+count: the plugin computes the difference to what is there under a lock on the inventory item and books that. Every
+request carries an `idempotency_key`; the plugin stores it with the result in `medusify_operation`, so a retry after a lost
+answer (a scan at the edge of the Wi-Fi) is answered from the first try and books nothing. An `undo` takes back exactly the
+difference of the request it names, not "the old number", and an undo for a request that never arrived leaves a marker so
+that the request which arrives late changes nothing. Below zero is refused (`400 medusify:below_zero`). A location where
+the item has no level yet is created by the first change, if the role has `stock_new_level`. Kits (a variant that needs
+several inventory items or more than one unit of one) and variants that do not track stock are shown but not counted; the
+count is for the Medusa admin. Stock changes made by the app emit `inventory-level.updated` with `source: "medusify"`.
+
+**Quick create** runs as one Medusa workflow: inventory item with its level, product with one variant, price, photo,
+default sales channel and default shipping profile of the shop, then the key is stored. A failure in the middle rolls the
+earlier steps back with Medusa's own compensation, so the shop does not keep half a product. The currency must be one the
+store supports, the location must exist. More (options, more variants, texts, categories) stays in the Medusa admin.
+
 ### Push kinds
 
 | Kind | Event | Switchable |
@@ -179,6 +231,16 @@ this way carries `metadata.medusify_source = "app"`. The plugin sends no "return
 | New order | `order.placed` | no |
 | Canceled order | `order.canceled` | yes |
 | Return requested | `order.return_requested` | yes |
+| Low stock | `inventory-level.updated`, `reservation-item.created` | yes (on by default) |
+
+**Low stock.** A device gets "{shop}: Bestand niedrig" (or "Ausverkauft" at zero) when the units that can be sold of a
+product, summed over all its locations, fall to the device's threshold or below. The threshold is set per device and shop
+in More (default 5, 0 to 9999; 0 means only when it is gone). A reservation (a new order) and a stock change in the
+Medusa admin trigger it as well; a count made in the app does not (`source: "medusify"`), because the person who made it
+is looking at it. Each device gets at most one message per product in a rolling 24 hours, and the count does not reset when
+the stock goes back up, so a product that hovers around the threshold does not ring all day. The throttle is one atomic
+statement on `medusify_stock_alert` (`INSERT … ON CONFLICT … WHERE last_sent_at < cutoff RETURNING`), so two events at once
+send one message. Only users with `stock_read` get it. The tap opens the product in the app.
 
 Medusa 2.22.x has no event for a failed payment (checked in `@medusajs/core-flows` and `@medusajs/utils` 2.22.7), so
 there is no push for it. The switches are stored per subscription, that is per device and shop, in the column

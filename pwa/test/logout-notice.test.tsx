@@ -10,11 +10,11 @@ afterEach(cleanup)
 describe("what the login screen says after signing out", () => {
   it("says that the session at the home shop is still open when it could not be ended", () => {
     render(<LogoutNotice t={makeT("de")} note={{ pushStillAt: [], sessionStillOpen: true }} />)
-    expect(screen.getByText(/Sitzung/).textContent).toMatch(/10 Stunden/)
+    expect(screen.getByText(/Sitzung/).textContent).toMatch(/Sitzungsdauer des Shops/)
   })
   it("says it in English too", () => {
     render(<LogoutNotice t={makeT("en")} note={{ pushStillAt: [], sessionStillOpen: true }} />)
-    expect(screen.getByText(/session/i).textContent).toMatch(/10 hours/)
+    expect(screen.getByText(/session/i).textContent).toMatch(/session lifetime/)
   })
   it("names the shops that still hold a push subscription", () => {
     render(<LogoutNotice t={makeT("de")} note={{ pushStillAt: [shop("b", { name: "Shop B" })], sessionStillOpen: false }} />)
@@ -24,7 +24,7 @@ describe("what the login screen says after signing out", () => {
   it("shows both when both happened", () => {
     render(<LogoutNotice t={makeT("de")} note={{ pushStillAt: [shop("b", { name: "Shop B" })], sessionStillOpen: true }} />)
     expect(screen.getByText(/Shop B/)).toBeTruthy()
-    expect(screen.getByText(/10 Stunden/)).toBeTruthy()
+    expect(screen.getByText(/Sitzungsdauer/)).toBeTruthy()
   })
   it("shows nothing after a clean sign-out", () => {
     const { container } = render(<LogoutNotice t={makeT("de")} note={{ pushStillAt: [], sessionStillOpen: false }} />)

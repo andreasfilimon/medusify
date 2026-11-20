@@ -6,7 +6,7 @@
 export type Kind = "forward" | "back" | "tab"
 
 const BASE = "/medusify"
-const TABS = new Set(["/", "/orders", "/more"])
+const TABS = new Set(["/", "/orders", "/products", "/more"])
 const SHARED = "order-title"
 
 const bare = (path: string) => {

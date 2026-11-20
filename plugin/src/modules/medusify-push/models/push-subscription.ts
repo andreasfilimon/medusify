@@ -18,6 +18,8 @@ const PushSubscription = model.define(
     failure_count: model.number().default(0),
     /** Push kinds this device has switched off (see lib/push-kinds.ts). Empty = everything on. */
     disabled_kinds: model.array().default([]),
+    /** Low-stock push: this device is told when a variant's stock falls to this number or below (see lib/low-stock.ts). */
+    low_stock_threshold: model.number().default(5),
   }
 )
 

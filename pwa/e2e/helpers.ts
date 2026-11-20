@@ -56,3 +56,26 @@ export async function lastShippedTracking(token: string): Promise<string[]> {
   const body = (await res.json()) as { orders: { fulfillments?: { shipped_at?: string | null; canceled_at?: string | null; labels?: { tracking_number?: string }[] }[] }[] }
   return body.orders.flatMap((o) => (o.fulfillments ?? []).filter((f) => f.shipped_at && !f.canceled_at).flatMap((f) => (f.labels ?? []).map((l) => l.tracking_number ?? "")))
 }
+
+/** The shop's catalog as the app sees it (plugin route), for assertions on the server side. */
+export type CatalogVariant = { id: string; title: string; barcode: string | null; stock_total: number | null; prices: { currency_code: string; amount: number; base: boolean }[]; inventory: { inventory_item_id: string; levels: { location_id: string; stocked: number }[] }[] }
+export type CatalogProduct = { id: string; title: string; status: string; thumbnail: string | null; variants: CatalogVariant[] }
+
+export async function catalogProducts(token: string, q: string): Promise<CatalogProduct[]> {
+  const res = await fetch(`${BASE}/admin/medusify/products?q=${encodeURIComponent(q)}&limit=50`, { headers: { authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`products ${res.status}`)
+  return ((await res.json()) as { products: CatalogProduct[] }).products
+}
+
+export async function catalogProduct(token: string, id: string): Promise<CatalogProduct> {
+  const res = await fetch(`${BASE}/admin/medusify/products/${id}`, { headers: { authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`product ${res.status}`)
+  return ((await res.json()) as { product: CatalogProduct }).product
+}
+
+/** A plain admin call with the dev shop token (test setup and clean-up only, never what the app under test does). */
+export async function adminCall(token: string, path: string, body: unknown) {
+  const res = await fetch(BASE + path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error(`${path} ${res.status} ${await res.text()}`)
+  return res.json()
+}

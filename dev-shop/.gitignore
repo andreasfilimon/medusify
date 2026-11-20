@@ -28,3 +28,4 @@ build
 *.tgz
 .devshop-mfa
 .e2e-actions.json
+/static

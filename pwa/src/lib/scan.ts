@@ -7,6 +7,12 @@ type ZX = typeof import("zxing-wasm/reader")
 /** Formats that carriers print on parcel labels. No EAN-13: that is the product code on the goods, never a parcel number. */
 const FORMATS = ["Code128", "Code39", "Code93", "ITF", "DataMatrix", "QRCode", "Codabar"] as const
 
+/**
+ * Formats on goods: the retail codes (EAN-13/8, UPC-A/E), Code 128 for shelf and warehouse labels, QR for what a shop prints
+ * itself. Names exactly as zxing-wasm spells them (a wrong name is not an error there, it just reads nothing).
+ */
+const PRODUCT_FORMATS = ["EAN-13", "EAN-8", "UPC-A", "UPC-E", "Code128", "QRCode"] as const
+
 /** 1D codes. A parcel number is printed as one of these; a 2D code on a label usually carries address and routing data. */
 const LINEAR = new Set<string>(["Code128", "Code39", "Code93", "ITF", "Codabar"])
 
@@ -29,6 +35,26 @@ export function pickTrackingCode(results: readonly Decoded[]): string {
   return (candidates.find((c) => c.linear) ?? candidates[0])?.text ?? ""
 }
 
+/** The longest code the app looks up: the plugin's lookup refuses longer ones. */
+export const MAX_PRODUCT_CODE = 128
+
+/**
+ * The product code among the codes of one camera frame, or "" when there is none. Retail codes come first (a product carries
+ * its EAN, and a shop's own QR label is the fallback), then the first valid code in reading order.
+ */
+export function pickProductCode(results: readonly Decoded[]): string {
+  const valid = results.filter((r) => r.isValid).map((r) => ({ format: r.format, text: cleanProductCode(r.text) })).filter((c) => c.text && c.text.length <= MAX_PRODUCT_CODE)
+  const retail = valid.find((c) => /^(EAN|UPC)/.test(c.format))
+  return (retail ?? valid[0])?.text ?? ""
+}
+
+/** The code without a symbology prefix, blanks and control characters; letters keep their case (a SKU is case-sensitive). */
+export function cleanProductCode(raw: string): string {
+  return raw.replace(/^\][A-Za-z][0-9A-Za-z]/, "").replace(/[\u0000-\u001f\s]/g, "").trim()
+}
+
+export type ScanKind = "parcel" | "product"
+
 let zxPromise: Promise<ZX> | null = null
 
 /** Loads the decoder only when the camera opens; the .wasm file is served from the app itself. */
@@ -50,9 +76,10 @@ export type ScanStart =
 
 /**
  * Opens the rear camera in `video`, decodes about five frames per second and calls `onCode` with a cleaned
- * tracking number. Permission is asked here, so call it only after a tap.
+ * tracking number (`kind` "parcel") or product code ("product"). `onCode` is called on every frame that shows the code, so
+ * the caller decides when it counts (lib/scan-session.ts). Permission is asked here, so call it only after a tap.
  */
-export async function startScan(video: HTMLVideoElement, onCode: (value: string) => void): Promise<ScanStart> {
+export async function startScan(video: HTMLVideoElement, onCode: (value: string) => void, kind: ScanKind = "parcel"): Promise<ScanStart> {
   if (!navigator.mediaDevices?.getUserMedia) return { kind: "no-camera" }
   let stream: MediaStream
   try {
@@ -93,8 +120,8 @@ export async function startScan(video: HTMLVideoElement, onCode: (value: string)
       canvas.height = h
       ctx.drawImage(video, 0, 0, w, h)
       try {
-        const results = await zx.readBarcodes(ctx.getImageData(0, 0, w, h), { formats: [...FORMATS], maxNumberOfSymbols: 8, tryHarder: true })
-        const text = pickTrackingCode(results)
+        const results = await zx.readBarcodes(ctx.getImageData(0, 0, w, h), { formats: kind === "product" ? [...PRODUCT_FORMATS] : [...FORMATS], maxNumberOfSymbols: 8, tryHarder: true })
+        const text = kind === "product" ? pickProductCode(results) : pickTrackingCode(results)
         if (text && !stopped) {
           navigator.vibrate?.(30)
           onCode(text)

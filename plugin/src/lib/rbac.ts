@@ -3,7 +3,7 @@ import * as http from "@medusajs/framework/http"
 import { MedusaModule } from "@medusajs/framework/modules-sdk"
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { Modules, PolicyOperation } from "@medusajs/framework/utils"
-import type { Policy } from "./permissions"
+import { ADMIN_ACTIONS, type Policy } from "./permissions"
 
 type ResolveRoles = (input: { authContext: { actor_id: string; actor_type: string }; container: MedusaContainer }) => Promise<unknown>
 
@@ -43,4 +43,9 @@ export async function userMay(container: MedusaContainer, userId: string, polici
 /** Whether the admin user may read orders: the right behind the order push and the dashboard. */
 export function canReadOrders(container: MedusaContainer, userId: string): Promise<boolean> {
   return userMay(container, userId, [ORDER_READ])
+}
+
+/** Whether the catalog answer for this request may carry stock (Medusa guards stock with `inventory_item:read`). */
+export async function stockAccess(req: { scope: MedusaContainer; auth_context: { actor_id: string } }): Promise<{ stock: boolean }> {
+  return { stock: await userMay(req.scope, req.auth_context.actor_id, ADMIN_ACTIONS.stock_read) }
 }

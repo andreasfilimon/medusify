@@ -28,7 +28,7 @@
     "scrollWidth": 390,
     "innerWidth": 390,
     "bodyScroll": 390,
-    "gutter": 32,
+    "gutter": 99,
     "ok": true
   },
   {
@@ -112,6 +112,86 @@
     "ok": true
   },
   {
+    "shot": "12-products-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "13-product-detail-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "13b-price-sheet-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "13c-stock-draft-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 32,
+    "ok": true
+  },
+  {
+    "shot": "13d-product-draft-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "14-scanner-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "14b-scanner-unknown-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "14c-scanner-count-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "15-new-product-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "15b-new-product-filled-light",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
     "shot": "07-more-light",
     "scrollWidth": 390,
     "innerWidth": 390,
@@ -172,7 +252,7 @@
     "scrollWidth": 390,
     "innerWidth": 390,
     "bodyScroll": 390,
-    "gutter": 32,
+    "gutter": 99,
     "ok": true
   },
   {
@@ -249,6 +329,86 @@
   },
   {
     "shot": "06c-ship-no-answer-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "12-products-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "13-product-detail-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "13b-price-sheet-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "13c-stock-draft-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 32,
+    "ok": true
+  },
+  {
+    "shot": "13d-product-draft-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 99,
+    "ok": true
+  },
+  {
+    "shot": "14-scanner-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "14b-scanner-unknown-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "14c-scanner-count-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "15-new-product-dark",
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "bodyScroll": 390,
+    "gutter": 16,
+    "ok": true
+  },
+  {
+    "shot": "15b-new-product-filled-dark",
     "scrollWidth": 390,
     "innerWidth": 390,
     "bodyScroll": 390,

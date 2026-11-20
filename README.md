@@ -81,9 +81,26 @@ and only if your role may do it.
 - **Swipe an order row to the left** to ship it or mark it as paid. The swipe opens the order with the confirmation; nothing
   happens before you confirm. Pull the list down to refresh. Every action is also on the order page.
 
+## What you can do with products and stock
+
+The Products tab lists the catalog of one shop (search by name, SKU or barcode; with several shops, pick one).
+
+- **Change a price.** Open a product, tap the price, type the new amount. The variant's other prices stay as they are.
+- **Count or change stock.** Per location a stepper and one "speichern" button; what is saved is the difference, so a
+  scan on another phone is not overwritten. Tap the number to type a count.
+- **Hide or show a product** with the switch on the detail page (draft or visible in the shop).
+- **Scanner.** The camera reads the barcode on the goods. "+1 pro Scan" books one unit per scan with an undo; "Zählen"
+  counts the goods first and writes the counts when you apply them. An unknown code can be assigned to a product on the
+  spot, and the code is remembered. A flaky connection is safe: every booking carries a key, so a resend never books twice.
+- **Create a product** with a photo, a name, a price and a starting stock in one go (as a draft unless you publish it).
+- **Low stock.** A push tells you when a product falls to your threshold (More, default 5), at most once a day per product.
+
+Variants made of several parts and variants without stock tracking are shown but not counted here; use the Medusa admin.
+The Products features need plugin 0.3.0 in the shop; an older plugin shows a note instead.
+
 The number on the app icon is the sum of the orders to ship in all your shops. It updates when you open the app and on
 every push. Where the phone or browser has no Badging API, there is no number. In More you can switch the pushes for
-cancellations and return requests on or off, per shop on this device.
+cancellations, return requests and low stock on or off, and set the low-stock threshold, per shop on this device.
 
 ## Limits
 

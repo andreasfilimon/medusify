@@ -82,10 +82,13 @@ describe("permissions", () => {
 describe("push preferences", () => {
   it("reads and writes per device", async () => {
     const fn = answer({ kinds: { canceled: true, return_requested: false } })
-    expect(await getPushPreferences(home, "https://push.example.invalid/x")).toEqual({ canceled: true, return_requested: false })
+    // a plugin older than 0.3.0 sends no threshold: -1 means "no low-stock row"
+    expect(await getPushPreferences(home, "https://push.example.invalid/x")).toEqual({ kinds: { canceled: true, return_requested: false }, low_stock_threshold: -1 })
     expect(call(fn).url).toBe("/admin/medusify/push-preferences?endpoint=https%3A%2F%2Fpush.example.invalid%2Fx")
     const fn2 = answer({ kinds: { canceled: false, return_requested: false } })
     await setPushPreference(home, "https://push.example.invalid/x", "canceled", false)
     expect(call(fn2).body).toEqual({ endpoint: "https://push.example.invalid/x", kind: "canceled", enabled: false })
+    answer({ kinds: { canceled: true, return_requested: false, low_stock: true }, low_stock_threshold: 3 })
+    expect(await getPushPreferences(home, "https://push.example.invalid/x")).toEqual({ kinds: { canceled: true, return_requested: false, low_stock: true }, low_stock_threshold: 3 })
   })
 })

@@ -36,5 +36,13 @@ TEST_BODY="$(curl -s -w '\n%{http_code}' -X POST "${AUTH[@]}" -H 'content-type: 
 check "test push route answers" 200 "$(printf '%s' "$TEST_BODY" | tail -n1)"
 echo "     test push body: $(printf '%s' "$TEST_BODY" | head -n1)"
 check "unknown action under push-subscriptions" 404 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{}' "$BASE/admin/medusify/push-subscriptions/other")"
+# 0.3.0: catalog and stock routes of the packed plugin. Reading only, plus the refusals that need no demo data.
+check "products list" 200 "$(code "${AUTH[@]}" "$BASE/admin/medusify/products?limit=5")"
+LOOKUP="$(curl -s "${AUTH[@]}" "$BASE/admin/medusify/variants/lookup?code=0000000000000")"
+check "lookup of an unknown code answers with an empty list" '{"matches":[]}' "$(printf '%s' "$LOOKUP" | tr -d ' \n')"
+check "push preferences of the smoke device: default low-stock threshold" "5" "$(curl -s "${AUTH[@]}" "$BASE/admin/medusify/push-preferences?endpoint=https://push.example.invalid/send/smoke" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("low_stock_threshold"))' 2>/dev/null || echo err)"
+check "push preferences of an unknown device: 404" 404 "$(code "${AUTH[@]}" "$BASE/admin/medusify/push-preferences?endpoint=https://push.example.invalid/none")"
+check "stock change without a key is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"mode":"adjust","inventory_item_id":"iitem_none","location_id":"sloc_none","quantity":1}' "$BASE/admin/medusify/inventory")"
+check "price of an unknown variant is 404" 404 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"currency_code":"eur","amount":1}' "$BASE/admin/medusify/variants/variant_none/price")"
 check "unsubscribe" 200 "$(code -X DELETE "${AUTH[@]}" "$BASE/admin/medusify/push-subscriptions?endpoint=https://push.example.invalid/send/smoke")"
 exit $fail

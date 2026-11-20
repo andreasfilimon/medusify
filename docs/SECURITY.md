@@ -52,7 +52,7 @@ message in the console.
 
 | What | Where | Lifetime | Script access |
 |---|---|---|---|
-| Session of the home shop (the shop the app was loaded from) | httpOnly cookie, set by `POST /auth/session` | 10 hours from sign-in, not extended (measured) | No |
+| Session of the home shop (the shop the app was loaded from) | httpOnly cookie, set by `POST /auth/session` | The shop's `sessionOptions.ttl`: Medusa's default is 10 hours from sign-in, not extended (measured). With `rolling: true` in the shop's `sessionOptions` every request extends it | No |
 | Bearer JWT of another shop | IndexedDB `medusify`/`kv`, inside the shop entry | 24 hours (measured: `exp - iat = 86400`). On a 401 the app tries `POST /auth/token/refresh` once, otherwise you sign in again | Yes, same origin |
 | JWT right after signing in at the home shop | In memory only, exchanged for the cookie at once and dropped | Seconds | Only in that moment |
 | MFA intermediate token (after password, before code) | In memory of the sign-in form only | Short, valid only for the confirmation | Yes, in memory |
@@ -76,7 +76,7 @@ Order in `pwa/src/lib/session.ts` (`logoutAll`), tested in `pwa/test/session.tes
 5. Cancel the push subscription in the browser.
 
 An unreachable shop never blocks the local deletion. It is reported ("The notification subscription still exists at: ...")
-and a home session that could not be ended expires on its own after 10 hours. Removing a single shop deletes its
+and a home session that could not be ended expires on its own after the shop's session lifetime (10 hours by default). Removing a single shop deletes its
 subscription, then its token and entry.
 
 ## Google sign-in

@@ -1,4 +1,5 @@
 import { ALL_ALLOWED, type Permissions } from "./actions"
+import type { LookupMatch, ProductPage, ProductView } from "./catalog"
 import type { Dashboard, Order, OrderItem, Shop } from "./types"
 
 export type ApiErrorKind = "unauthorized" | "notfound" | "rejected" | "network" | "server"
@@ -58,7 +59,8 @@ function headers(shop: Shop, extra?: HeadersInit, json = false): Headers {
  * a bearer token only for foreign shops. A 401 on a foreign shop tries one token refresh first.
  */
 export async function shopFetch(shop: Shop, path: string, init: RequestInit = {}, retried = false): Promise<Response> {
-  const json = init.body !== undefined
+  // A form (the photo upload) sets its own content type with the boundary.
+  const json = init.body !== undefined && !(init.body instanceof FormData)
   let res: Response
   try {
     res = await fetch(shop.url + path, {
@@ -632,14 +634,137 @@ export async function getPermissions(shop: Shop): Promise<Permissions> {
   }
 }
 
-export type PushKindPrefs = Record<"canceled" | "return_requested", boolean>
+export type PushKindPrefs = Record<"canceled" | "return_requested" | "low_stock", boolean>
 
-export async function getPushPreferences(shop: Shop, endpoint: string): Promise<PushKindPrefs> {
-  return (await json<{ kinds: PushKindPrefs }>(await shopFetch(shop, `/admin/medusify/push-preferences?endpoint=${encodeURIComponent(endpoint)}`))).kinds
+/** What a device gets: which optional kinds are on, and from how many units on the low-stock message comes (plugin 0.3.0). */
+export type PushPrefs = { kinds: PushKindPrefs; low_stock_threshold: number }
+
+type PrefsAnswer = { kinds: Partial<PushKindPrefs>; low_stock_threshold?: number }
+
+/** A plugin older than 0.3.0 answers without the low-stock kind and the threshold: those rows are left out of the screen. */
+const toPrefs = (body: PrefsAnswer): PushPrefs => ({
+  kinds: { canceled: true, return_requested: true, ...body.kinds } as PushKindPrefs,
+  low_stock_threshold: body.low_stock_threshold ?? -1,
+})
+
+export async function getPushPreferences(shop: Shop, endpoint: string): Promise<PushPrefs> {
+  return toPrefs(await json<PrefsAnswer>(await shopFetch(shop, `/admin/medusify/push-preferences?endpoint=${encodeURIComponent(endpoint)}`)))
 }
 
-export async function setPushPreference(shop: Shop, endpoint: string, kind: keyof PushKindPrefs, enabled: boolean): Promise<PushKindPrefs> {
-  return (await json<{ kinds: PushKindPrefs }>(await post(shop, "/admin/medusify/push-preferences", { endpoint, kind, enabled }))).kinds
+export async function setPushPreference(shop: Shop, endpoint: string, kind: keyof PushKindPrefs, enabled: boolean): Promise<PushPrefs> {
+  return toPrefs(await json<PrefsAnswer>(await post(shop, "/admin/medusify/push-preferences", { endpoint, kind, enabled })))
+}
+
+export async function setLowStockThreshold(shop: Shop, endpoint: string, threshold: number): Promise<PushPrefs> {
+  return toPrefs(await json<PrefsAnswer>(await post(shop, "/admin/medusify/push-preferences", { endpoint, low_stock_threshold: threshold })))
+}
+
+// ---- catalog and stock (plugin 0.3.0) -----------------------------------------------------------------------
+
+export const PRODUCT_PAGE = 30
+
+/** Refusals of the plugin's catalog routes that the app words itself (plugin/src/workflows/change-stock.ts, quick-create-product.ts). */
+export const BELOW_ZERO = "medusify:below_zero"
+export const NOTHING_TO_UNDO = "medusify:nothing_to_undo"
+export const AMOUNT_DECIMALS = "medusify:amount_decimals"
+export const CURRENCY_NOT_SUPPORTED = "medusify:currency_not_supported"
+export const NO_LOCATION = "medusify:no_location"
+
+/** What a failed catalog call means for the user. `unknown`: no answer or a server error; for a stock change the same key may be sent again. */
+export type CatalogFailure = { kind: "unknown" } | { kind: "auth" } | { kind: "forbidden" } | { kind: "old" } | { kind: "rejected"; code?: string; reason?: string }
+
+export function catalogFailure(err: unknown): CatalogFailure {
+  if (err instanceof ApiError) {
+    if (err.kind === "network" || err.kind === "server") return { kind: "unknown" }
+    if (err.status === 409) return { kind: "unknown" }
+    if (err.kind === "unauthorized") return { kind: "auth" }
+    if (err.status === 403) return { kind: "forbidden" }
+    // A plugin older than 0.3.0 has no such route: Medusa answers 404 without a medusify code.
+    if (err.kind === "notfound" && !err.message.startsWith("medusify:")) return { kind: "old" }
+    if (err.message.startsWith("medusify:")) return { kind: "rejected", code: err.message }
+    return { kind: "rejected", reason: err.message && err.message !== err.kind ? err.message : undefined }
+  }
+  return { kind: "unknown" }
+}
+
+export async function listProducts(shop: Shop, query: { q?: string; offset?: number; limit?: number }): Promise<ProductPage> {
+  const p = new URLSearchParams({ offset: String(query.offset ?? 0), limit: String(query.limit ?? PRODUCT_PAGE) })
+  if (query.q) p.set("q", query.q)
+  return json<ProductPage>(await shopFetch(shop, `/admin/medusify/products?${p}`))
+}
+
+export async function getProduct(shop: Shop, id: string): Promise<ProductView> {
+  return (await json<{ product: ProductView }>(await shopFetch(shop, `/admin/medusify/products/${encodeURIComponent(id)}`))).product
+}
+
+export async function lookupVariants(shop: Shop, code: string): Promise<LookupMatch[]> {
+  return (await json<{ matches: LookupMatch[] }>(await shopFetch(shop, `/admin/medusify/variants/lookup?code=${encodeURIComponent(code)}`))).matches
+}
+
+export type StockRequest =
+  | { mode: "adjust" | "set"; inventory_item_id: string; location_id: string; quantity: number; idempotency_key: string }
+  | { mode: "undo"; undo_of: string; idempotency_key: string }
+
+export type StockAnswer = { inventory_item_id: string; location_id: string; stocked: number; reserved: number; available: number; replayed: boolean; delta: number }
+
+/** One stock change. The key makes it safe to send again after a lost answer: the shop answers a repeat without writing. */
+export async function changeStock(shop: Shop, req: StockRequest): Promise<StockAnswer> {
+  return json<StockAnswer>(await post(shop, "/admin/medusify/inventory", req))
+}
+
+export async function setBasePrice(shop: Shop, variantId: string, currency: string, amount: number): Promise<ProductView["variants"][number]["prices"]> {
+  return (await json<{ prices: ProductView["variants"][number]["prices"] }>(await post(shop, `/admin/medusify/variants/${encodeURIComponent(variantId)}/price`, { currency_code: currency, amount }))).prices
+}
+
+/** Draft or published: Medusa's own product update. */
+export async function setProductStatus(shop: Shop, productId: string, status: "draft" | "published"): Promise<void> {
+  await post(shop, `/admin/products/${encodeURIComponent(productId)}`, { status })
+}
+
+/** Writes a barcode onto a variant: Medusa's own variant update. */
+export async function setVariantBarcode(shop: Shop, productId: string, variantId: string, barcode: string): Promise<void> {
+  await post(shop, `/admin/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`, { barcode })
+}
+
+export type NewProduct = { title: string; status: "draft" | "published"; price: { currency_code: string; amount: number }; stock: { location_id: string; quantity: number }; image_url?: string; idempotency_key: string }
+
+export async function createProduct(shop: Shop, input: NewProduct): Promise<{ product_id: string; variant_id: string; replayed: boolean }> {
+  return json(await post(shop, "/admin/medusify/products", input))
+}
+
+/** Uploads the photo through Medusa's file module and returns its address. */
+export async function uploadPhoto(shop: Shop, photo: Blob): Promise<string> {
+  const form = new FormData()
+  form.append("files", photo, "photo.jpg")
+  const body = await json<{ files?: { url?: string }[] }>(await shopFetch(shop, "/admin/uploads", { method: "POST", body: form }))
+  const url = body.files?.[0]?.url
+  if (!url) throw new ApiError("rejected", 200, "no url")
+  return url
+}
+
+export type StockLocation = { id: string; name: string }
+
+/** The shop's stock locations; empty when the user may not list them (the screens then use the locations of the product). */
+export async function stockLocations(shop: Shop): Promise<StockLocation[]> {
+  try {
+    const body = await json<{ stock_locations?: { id: string; name?: string }[] }>(await shopFetch(shop, "/admin/stock-locations?limit=100&fields=id,name"))
+    return (body.stock_locations ?? []).map((l) => ({ id: l.id, name: l.name ?? l.id }))
+  } catch (e) {
+    if (e instanceof ApiError && e.kind === "unauthorized") throw e
+    return []
+  }
+}
+
+/** The currencies the shop sells in, default first; empty when the shop's settings cannot be read. */
+export async function storeCurrencies(shop: Shop): Promise<string[]> {
+  try {
+    const body = await json<{ stores?: { supported_currencies?: { currency_code: string; is_default?: boolean }[] }[] }>(await shopFetch(shop, "/admin/stores?fields=id,*supported_currencies"))
+    const list = body.stores?.[0]?.supported_currencies ?? []
+    return [...list].sort((a, b) => Number(!!b.is_default) - Number(!!a.is_default)).map((c) => c.currency_code.toLowerCase())
+  } catch (e) {
+    if (e instanceof ApiError && e.kind === "unauthorized") throw e
+    return []
+  }
 }
 
 // ---- push (plugin routes) ---------------------------------------------------------------------------------

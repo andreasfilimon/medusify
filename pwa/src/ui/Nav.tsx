@@ -156,6 +156,7 @@ export function TabBar() {
   const tabs: TabDef[] = [
     { path: "/", icon: "house", iconOn: "house-fill", label: t("tab.start") },
     { path: "/orders", icon: "receipt", iconOn: "receipt-fill", label: t("tab.orders"), badge: totalToShip },
+    { path: "/products", icon: "package", iconOn: "package-fill", label: t("tab.products") },
     { path: "/more", icon: "dots-three", iconOn: "dots-three-fill", label: t("tab.more") },
   ]
   const active = (p: string) => (p === "/" ? location === "/" : location.startsWith(p))

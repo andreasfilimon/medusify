@@ -1,5 +1,5 @@
 import { z } from "@medusajs/framework/zod"
-import { SWITCHABLE_KINDS } from "../../../lib/push-kinds"
+import { MAX_LOW_STOCK_THRESHOLD, SWITCHABLE_KINDS } from "../../../lib/push-kinds"
 import { isValidTimeZone } from "../../../lib/time"
 
 const endpointSchema = z
@@ -36,11 +36,18 @@ export type GetDashboardQuery = z.infer<typeof GetDashboardQuery>
 export const GetPushPreferencesQuery = z.object({ endpoint: endpointSchema })
 export type GetPushPreferencesQuery = z.infer<typeof GetPushPreferencesQuery>
 
-export const PostPushPreference = z.object({
-  endpoint: endpointSchema,
-  kind: z.enum(SWITCHABLE_KINDS),
-  enabled: z.boolean(),
-})
+export const PostPushPreference = z.union([
+  z.object({
+    endpoint: endpointSchema,
+    kind: z.enum(SWITCHABLE_KINDS),
+    enabled: z.boolean(),
+  }),
+  z.object({
+    endpoint: endpointSchema,
+    /** Low-stock push: at this many units or fewer this device is told. 0 = only when it is gone. */
+    low_stock_threshold: z.number().int().min(0).max(MAX_LOW_STOCK_THRESHOLD),
+  }),
+])
 export type PostPushPreference = z.infer<typeof PostPushPreference>
 
 export const PostReturn = z.object({
@@ -71,3 +78,59 @@ export const PostShip = z.object({
   numbers: z.record(z.string().min(1).max(128), trackingNumber).optional(),
 })
 export type PostShip = z.infer<typeof PostShip>
+
+const id = z.string().min(1).max(128)
+const key = z.string().min(8).max(128)
+
+export const GetProductsQuery = z.object({
+  q: z.string().trim().max(100).optional(),
+  status: z.enum(["draft", "published"]).optional(),
+  offset: z.coerce.number().int().min(0).max(100000).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+})
+export type GetProductsQuery = z.infer<typeof GetProductsQuery>
+
+export const GetLookupQuery = z.object({ code: z.string().trim().min(1).max(128) })
+export type GetLookupQuery = z.infer<typeof GetLookupQuery>
+
+export const PostPrice = z.object({
+  currency_code: z.string().trim().min(3).max(3),
+  /** In the currency's main unit (19.9 is 19 euro 90), as Medusa stores it. */
+  amount: z.number().min(0).max(1e9),
+})
+export type PostPrice = z.infer<typeof PostPrice>
+
+export const PostInventory = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("adjust"),
+    inventory_item_id: id,
+    location_id: id,
+    quantity: z.number().int().min(-100000).max(100000).refine((n) => n !== 0, { message: "quantity must not be 0" }),
+    idempotency_key: key,
+  }),
+  z.object({
+    mode: z.literal("set"),
+    inventory_item_id: id,
+    location_id: id,
+    quantity: z.number().int().min(0).max(1000000),
+    idempotency_key: key,
+  }),
+  z.object({
+    /** Takes back the change an earlier request with `undo_of` made. It does nothing when that request never landed. */
+    mode: z.literal("undo"),
+    undo_of: key,
+    idempotency_key: key,
+  }),
+])
+export type PostInventory = z.infer<typeof PostInventory>
+
+export const PostProduct = z.object({
+  title: z.string().trim().min(1).max(200),
+  status: z.enum(["draft", "published"]),
+  price: z.object({ currency_code: z.string().trim().min(3).max(3), amount: z.number().min(0).max(1e9) }),
+  stock: z.object({ location_id: id, quantity: z.number().int().min(0).max(1000000) }),
+  /** URL of a photo already uploaded through Medusa's upload route. */
+  image_url: z.string().trim().max(2048).refine((u) => /^https?:\/\/\S+$/i.test(u), { message: "must be an http(s) URL" }).optional(),
+  idempotency_key: key,
+})
+export type PostProduct = z.infer<typeof PostProduct>

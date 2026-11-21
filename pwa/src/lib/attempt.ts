@@ -52,6 +52,11 @@ export function reread(order: string): void {
   for (const e of entries.values()) if (e.order === order && e.phase === "unread") e.phase = "read"
 }
 
+/** The key of the attempt in `scope`, if there is one (to ask the shop what became of it). */
+export function keyOf(scope: string): string | null {
+  return entries.get(scope)?.key ?? null
+}
+
 /** The attempt is over: it worked, the shop clearly refused it, or the order shows that it landed. */
 export function forget(scope: string): void {
   entries.delete(scope)

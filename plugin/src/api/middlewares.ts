@@ -17,6 +17,10 @@ import {
   DeletePushSubscription,
   GetDashboardQuery,
   GetLookupQuery,
+  GetCustomersQuery,
+  PostManualOrder,
+  PostOrderChange,
+  PostOrderChangePreview,
   GetProductsQuery,
   GetPushPreferencesQuery,
   PostInventory,
@@ -116,6 +120,42 @@ const routes: MiddlewareRoute[] = [
     method: "POST",
     // The rights Medusa asks for when it creates a product, its variant and the stock. The photo upload is its own route.
     middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.product_create]), validateAndTransformBody(PostProduct)],
+  },
+  {
+    // the right depends on the kind in the body (checked in the route); order:update is needed for every kind
+    matcher: "/admin/medusify/orders/:id/change/preview",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([{ resource: "order", operation: "update" }]), validateAndTransformBody(PostOrderChangePreview)],
+  },
+  {
+    matcher: "/admin/medusify/orders/:id/change",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([{ resource: "order", operation: "update" }]), validateAndTransformBody(PostOrderChange)],
+  },
+  {
+    matcher: "/admin/medusify/orders/setup",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.manual_order])],
+  },
+  {
+    matcher: "/admin/medusify/orders/attempts/:key",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.manual_order])],
+  },
+  {
+    matcher: "/admin/medusify/orders",
+    method: "POST",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.manual_order]), validateAndTransformBody(PostManualOrder)],
+  },
+  {
+    matcher: "/admin/medusify/customers",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.customers]), validateAndTransformQuery(GetCustomersQuery, {})],
+  },
+  {
+    matcher: "/admin/medusify/customers/:id",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.customers])],
   },
   {
     matcher: "/admin/medusify/products/:id",

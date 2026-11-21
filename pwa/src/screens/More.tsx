@@ -51,6 +51,18 @@ export function More() {
     <div className="screen">
       <NavBar title={t("more.title")} />
       <Scroll heading={{ title: t("more.title") }}>
+        <div className="group">
+          <Link className="row single" href="/customers">
+            <Icon name="users" size="sm" />
+            <span className="row-main"><span className="row-title reg">{t("cust.title")}</span></span>
+            <Icon name="caret-right" size="sm" />
+          </Link>
+          <Link className="row single" href="/discounts">
+            <Icon name="tag" size="sm" />
+            <span className="row-main"><span className="row-title reg">{t("disc.title")}</span></span>
+            <Icon name="caret-right" size="sm" />
+          </Link>
+        </div>
         <Section id="shops" title={t("more.shops")}>
           <div className="group">
             {shops.map((s) => (

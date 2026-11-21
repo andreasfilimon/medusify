@@ -21,7 +21,7 @@ export default defineConfig({
   outputDir: "test-results",
   use: { baseURL: `${base}/medusify/`, locale: "de-AT", timezoneId: "Europe/Vienna", trace: "retain-on-failure" },
   projects: [
-    { name: "webkit", testMatch: /(app|actions|lost-answer|google|csp|kit|catalog)\.spec\.ts/, use: { ...devices["iPhone 15"] } },
+    { name: "webkit", testMatch: /(app|actions|lost-answer|google|csp|kit|catalog|customers|discounts|manual-order|order-change)\.spec\.ts/, use: { ...devices["iPhone 15"] } },
     {
       name: "chromium",
       testMatch: /(sw|push|csp|gestures)\.spec\.ts/,

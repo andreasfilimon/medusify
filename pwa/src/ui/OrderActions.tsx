@@ -2,11 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useId, useRef, useState } from "react"
 import { useApp } from "../app/context"
 import { ALL_ALLOWED, orderActions } from "../lib/actions"
+import { changeLines, type ChangeKind } from "../lib/order-change"
 import * as api from "../lib/api"
 import { optimisticDelivered } from "../lib/optimistic"
 import { formatMoney } from "../lib/format"
 import type { Order, Shop } from "../lib/types"
 import { useAction } from "../lib/use-action"
+import { ChangeSheet } from "./ChangeSheet"
 import { ConfirmBody } from "./ConfirmSheet"
 import { Icon, type IconName } from "./Icon"
 import { Section } from "./kit"
@@ -14,7 +16,7 @@ import { RefundSheet } from "./RefundSheet"
 import { ReturnSheet } from "./ReturnSheet"
 import { Sheet } from "./Sheet"
 
-type Open = "capture" | "paid" | "cancel" | "refund" | "return" | null
+type Open = "capture" | "paid" | "cancel" | "refund" | "return" | ChangeKind | null
 
 /** One action of the list: a plain row, red when it cannot be taken back. */
 function ActionRow({ icon, title, sub, danger, disabled, onClick }: { icon: IconName; title: string; sub?: string; danger?: boolean; disabled?: boolean; onClick(): void }) {
@@ -54,7 +56,14 @@ export function OrderActions({ shop, order, intent = null }: { shop: Shop; order
 
   if (!perms.data) return null
   const a = orderActions(order, perms.data ?? ALL_ALLOWED)
-  const any = a.capture || a.markPaid || a.cancel || a.deliver.length || a.refund || a.returnable.length
+  // Changes after the order (plugin 0.4.0): Medusa refuses them on a canceled or draft order
+  const open_ = !["canceled", "draft", "archived"].includes(order.status)
+  const change = {
+    edit: open_ && perms.data.order_edit && !!order.items?.length,
+    exchange: open_ && perms.data.exchange && changeLines(order, "exchange").length > 0,
+    claim: open_ && perms.data.claim && changeLines(order, "claim").length > 0,
+  }
+  const any = a.capture || a.markPaid || a.cancel || a.deliver.length || a.refund || a.returnable.length || change.edit || change.exchange || change.claim
   if (!any) return null
 
   const close = () => {
@@ -79,6 +88,9 @@ export function OrderActions({ shop, order, intent = null }: { shop: Shop; order
               onClick={() => void run(() => api.markDelivered(shop, order.id, d.fulfillmentId), t("act.deliverDone"), () => optimisticDelivered(qc, order.id, d.fulfillmentId))}
             />
           ))}
+          {change.edit ? <ActionRow icon="note-pencil" title={t("oc.edit")} sub={t("oc.editSub")} disabled={!online} onClick={() => setOpen("edit")} /> : null}
+          {change.exchange ? <ActionRow icon="arrow-down" title={t("oc.exchange")} sub={t("oc.exchangeSub")} disabled={!online} onClick={() => setOpen("exchange")} /> : null}
+          {change.claim ? <ActionRow icon="warning-circle" title={t("oc.claim")} sub={t("oc.claimSub")} disabled={!online} onClick={() => setOpen("claim")} /> : null}
           {a.returnable.length ? <ActionRow icon="package" title={t("act.return")} sub={t("act.returnSub")} disabled={!online} onClick={() => setOpen("return")} /> : null}
           {a.refund ? <ActionRow icon="arrow-u-up-left" title={t("act.refund")} sub={t("act.refundSub", { amount: money(a.refund.max) })} danger disabled={!online} onClick={() => setOpen("refund")} /> : null}
           {a.cancel ? <ActionRow icon="x-circle" title={t("act.cancel")} danger disabled={!online} onClick={() => setOpen("cancel")} /> : null}
@@ -132,6 +144,7 @@ export function OrderActions({ shop, order, intent = null }: { shop: Shop; order
       ) : null}
 
       {open === "refund" && a.refund ? <RefundSheet shop={shop} order={order} paymentId={a.refund.paymentId} max={a.refund.max} onClose={close} /> : null}
+      {(open === "edit" || open === "exchange" || open === "claim") && change[open] ? <ChangeSheet shop={shop} order={order} kind={open} onClose={close} /> : null}
       {open === "return" && a.returnable.length ? <ReturnSheet shop={shop} order={order} items={a.returnable} refund={a.refund} onClose={close} /> : null}
     </>
   )

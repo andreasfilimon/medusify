@@ -90,6 +90,13 @@ export const GetProductsQuery = z.object({
 })
 export type GetProductsQuery = z.infer<typeof GetProductsQuery>
 
+export const GetCustomersQuery = z.object({
+  q: z.string().trim().max(100).optional(),
+  offset: z.coerce.number().int().min(0).max(100000).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+})
+export type GetCustomersQuery = z.infer<typeof GetCustomersQuery>
+
 export const GetLookupQuery = z.object({ code: z.string().trim().min(1).max(128) })
 export type GetLookupQuery = z.infer<typeof GetLookupQuery>
 
@@ -134,3 +141,57 @@ export const PostProduct = z.object({
   idempotency_key: key,
 })
 export type PostProduct = z.infer<typeof PostProduct>
+
+const text = (max: number) => z.string().trim().max(max).nullish()
+
+export const PostManualOrder = z.object({
+  region_id: id,
+  customer_id: id.nullish(),
+  email: z.string().trim().email().max(320).nullish(),
+  items: z.array(z.object({ variant_id: id, quantity: z.number().int().min(1).max(100000) })).min(1).max(100),
+  shipping_option_id: id.nullish(),
+  shipping_address: z
+    .object({
+      first_name: text(100), last_name: text(100), company: text(200), address_1: text(300), address_2: text(300),
+      postal_code: text(30), city: text(100), province: text(100), country_code: z.string().trim().length(2).toLowerCase().nullish(), phone: text(50),
+    })
+    .nullish(),
+  /** The money is already there (cash, bank transfer): the order is marked as paid at once. */
+  paid: z.boolean().default(false),
+  idempotency_key: key,
+})
+export type PostManualOrder = z.infer<typeof PostManualOrder>
+
+const line = z.object({ id, quantity: z.number().int().min(0).max(100000) })
+const newLine = z.object({ variant_id: id, quantity: z.number().int().min(1).max(100000) })
+const note = z.string().trim().max(500).nullish()
+
+export const OrderChangeBody = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("edit"), items: z.array(line).max(100).default([]), add: z.array(newLine).max(100).default([]), note }),
+  z.object({
+    kind: z.literal("exchange"),
+    return_items: z.array(line.extend({ quantity: z.number().int().min(1).max(100000) })).min(1).max(100),
+    add: z.array(newLine).min(1).max(100),
+    location_id: id.nullish(),
+    note,
+  }),
+  z.object({
+    kind: z.literal("claim"),
+    type: z.enum(["refund", "replace"]),
+    items: z.array(line.extend({ quantity: z.number().int().min(1).max(100000), reason: z.enum(["missing_item", "wrong_item", "production_failure", "other"]) })).min(1).max(100),
+    add: z.array(newLine).max(100).default([]),
+    note,
+  }),
+])
+export type OrderChangeBody = z.infer<typeof OrderChangeBody>
+
+export const PostOrderChange = z.object({
+  change: OrderChangeBody,
+  /** The difference the merchant saw in the preview and confirmed. */
+  expected_difference: z.number().min(-1e9).max(1e9),
+  idempotency_key: key,
+})
+export type PostOrderChange = z.infer<typeof PostOrderChange>
+
+export const PostOrderChangePreview = z.object({ change: OrderChangeBody })
+export type PostOrderChangePreview = z.infer<typeof PostOrderChangePreview>

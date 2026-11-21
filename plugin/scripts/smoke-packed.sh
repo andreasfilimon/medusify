@@ -44,5 +44,14 @@ check "push preferences of the smoke device: default low-stock threshold" "5" "$
 check "push preferences of an unknown device: 404" 404 "$(code "${AUTH[@]}" "$BASE/admin/medusify/push-preferences?endpoint=https://push.example.invalid/none")"
 check "stock change without a key is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"mode":"adjust","inventory_item_id":"iitem_none","location_id":"sloc_none","quantity":1}' "$BASE/admin/medusify/inventory")"
 check "price of an unknown variant is 404" 404 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"currency_code":"eur","amount":1}' "$BASE/admin/medusify/variants/variant_none/price")"
+# 0.4.0: customers, orders by hand, order changes. Reading only, plus refusals that make nothing.
+check "customers list" 200 "$(code "${AUTH[@]}" "$BASE/admin/medusify/customers?limit=5")"
+check "unknown customer is 404" 404 "$(code "${AUTH[@]}" "$BASE/admin/medusify/customers/cus_none")"
+check "form setup for an order by hand" 200 "$(code "${AUTH[@]}" "$BASE/admin/medusify/orders/setup")"
+check "asking for an unknown key of an order by hand" '{"state":"none"}' "$(curl -s "${AUTH[@]}" "$BASE/admin/medusify/orders/attempts/smoke-none-0000" | tr -d ' \n')"
+check "asking with a key too short is refused" 400 "$(code "${AUTH[@]}" "$BASE/admin/medusify/orders/attempts/short")"
+check "order by hand without items is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"region_id":"reg_none","email":"smoke@example.invalid","items":[],"idempotency_key":"smoke-0000-0000"}' "$BASE/admin/medusify/orders")"
+check "change preview with a bad body is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"change":{"kind":"other"}}' "$BASE/admin/medusify/orders/order_none/change/preview")"
+check "rights list has the new rights" "True" "$(curl -s "${AUTH[@]}" "$BASE/admin/medusify/permissions" | python3 -c 'import sys,json; a=json.load(sys.stdin).get("actions",{}); print(all(k in a for k in ["customers","discounts","manual_order","order_edit","exchange","claim"]))' 2>/dev/null || echo err)"
 check "unsubscribe" 200 "$(code -X DELETE "${AUTH[@]}" "$BASE/admin/medusify/push-subscriptions?endpoint=https://push.example.invalid/send/smoke")"
 exit $fail

@@ -94,13 +94,20 @@ MFA login is required whenever you enforce it). Without login every one of them 
 | `GET /admin/medusify/dashboard?tz=Europe/Vienna` | `shop_label` (the name push titles carry), revenue (per currency) and order counts for today and this month in the given time zone, `to_ship`, `recent_orders` (10) |
 | `GET /admin/medusify/push-preferences?endpoint=` | Which optional push kinds this device gets, and from how many units the low-stock message comes → `{ kinds: { canceled, return_requested, low_stock }, low_stock_threshold }`. Only your own device, otherwise `404`. |
 | `POST /admin/medusify/push-preferences` | Switch one optional kind for this device: `{ endpoint, kind: "canceled" \| "return_requested" \| "low_stock", enabled }`, or set the threshold: `{ endpoint, low_stock_threshold }` (whole number 0 to 9999) → `{ kinds, low_stock_threshold }`. Only your own device. |
-| `GET /admin/medusify/permissions` | What the signed-in user may do in the app → `{ actions: { capture, mark_paid, cancel, cancel_refunding, deliver, refund, return, ship, catalog, variant_edit, product_status, stock, stock_new_level, product_create, upload, stock_read } }` (booleans) |
+| `GET /admin/medusify/permissions` | What the signed-in user may do in the app → `{ actions: { capture, mark_paid, cancel, cancel_refunding, deliver, refund, return, ship, catalog, variant_edit, product_status, stock, stock_new_level, product_create, upload, stock_read, customers, discounts, discount_create, discount_edit, manual_order, order_edit, exchange, claim } }` (booleans) |
 | `GET /admin/medusify/products?q=&offset=&limit=` | The catalog for the phone: products with variants, plain and rule prices, and stock per location (stocked, reserved, available, incoming) → `{ products, count, offset, limit }`. `q` searches title, SKU and barcode. |
 | `GET /admin/medusify/products/:id` | One product in the same shape → `{ product }`; `404 medusify:no_product` |
 | `GET /admin/medusify/variants/lookup?code=` | The variants a scanned code belongs to, matched in the order barcode, SKU, EAN, UPC (a UPC-A also matches its EAN-13 twin with a leading 0) → `{ matches: [{ product, variant, matched_by }] }`. Longer than 128 characters is a `400`. |
 | `POST /admin/medusify/variants/:id/price` | Set the plain price of one currency: `{ currency_code, amount }` (amount in the main unit, at most the currency's decimals) → `{ prices }`. The variant's other prices, region prices and tiers stay (see "Catalog and stock"). |
 | `POST /admin/medusify/inventory` | One stock change, always with an `idempotency_key` (8+ characters): `{ mode: "adjust", inventory_item_id, location_id, quantity }` (a difference), `{ mode: "set", … }` (a count) or `{ mode: "undo", undo_of: <key> }` → `{ stocked, reserved, available, delta, replayed }`. A repeat of a key changes nothing and answers `replayed: true`. |
 | `POST /admin/medusify/products` | Quick create: one product with one variant, a price, an optional photo address and the stock at one location, in one workflow: `{ title, status: "draft" \| "published", price: { currency_code, amount }, stock: { location_id, quantity }, image_url?, idempotency_key }` → `201 { product_id, variant_id, replayed }`; a repeat of the key is `200` with the same product. |
+| `GET /admin/medusify/customers?q=&offset=&limit=` | Customers, newest first, each with `stats: { orders, spent, last_order_at, order_name }` → `{ customers, count, offset, limit }`. `q` searches name, email, company and phone. |
+| `GET /admin/medusify/customers/:id` | One customer with addresses, groups and the same numbers → `{ customer }`; `404 medusify:no_customer` |
+| `GET /admin/medusify/orders/setup` | What the form for an order by hand offers: regions with currency and countries, flat shipping options (no return options) with their price per region → `{ regions, shipping_options }` |
+| `POST /admin/medusify/orders` | An order by hand: `{ region_id, customer_id? \| email?, items: [{ variant_id, quantity }], shipping_option_id?, shipping_address?, paid?, idempotency_key }` → `201 { order_id, display_id, replayed, incomplete }`; a repeat of the key is `200` with the same order (`incomplete: true`: a first try stopped before marking it paid). `paid: true` needs the right `mark_paid` as well (`403 medusify:not_allowed_paid`). |
+| `GET /admin/medusify/orders/attempts/:key` | What the order by hand with this key came to → `{ state: "none" }` (nothing was made) or `{ state: "done" \| "incomplete", order_id, display_id }`. Waits for a create with the same key that is still running. Right `manual_order`. |
+| `POST /admin/medusify/orders/:id/change/preview` | What a change would do to the money, nothing stays changed: `{ change }` (see below) → `{ currency_code, total_before, total_after, difference, goods_value }` |
+| `POST /admin/medusify/orders/:id/change` | Make the change the merchant confirmed: `{ change, expected_difference, idempotency_key }` → `201 { …money, kind, order_id, replayed }`; a repeat of the key is `200` from the first result. Another difference now is `400 medusify:difference_changed` and changes nothing; an open change on the order (for example begun in the Medusa admin) is `400 medusify:change_open`; a canceled or draft order is `400 medusify:order_closed`. |
 | `POST /admin/medusify/returns` | Accept a return: `{ order_id, items: [{ id, quantity }], refund_amount?, note?, idempotency_key? }` → `201 { return_id, order_id, refunded }`. The same `idempotency_key` for the same order and content answers with the first return (`200`, no second return, no second refund); the same key with other content is a `409`. |
 | `POST /admin/medusify/orders/:id/cancel` | Cancel an order like Medusa's own route, plus one check: if captured money would be refunded by it, the caller needs the refund right as well. The app uses this route. |
 | `GET /medusify/*` | The PWA (public static files, no auth) |
@@ -223,6 +230,64 @@ count is for the Medusa admin. Stock changes made by the app emit `inventory-lev
 default sales channel and default shipping profile of the shop, then the key is stored. A failure in the middle rolls the
 earlier steps back with Medusa's own compensation, so the shop does not keep half a product. The currency must be one the
 store supports, the location must exist. More (options, more variants, texts, categories) stays in the Medusa admin.
+
+### Customers, discount codes and orders by hand
+
+Stage 3 of the app (plugin 0.4.0).
+
+| Action | Rights (all of them) |
+| --- | --- |
+| Customer list and profile (`customers`) | `customer:read`, `order:read` |
+| See discount codes (`discounts`) | `promotion:read` |
+| Create a code (`discount_create`) | `promotion:create` |
+| Pause or resume a code (`discount_edit`) | `promotion:update` |
+| Order by hand (`manual_order`) | `order:create`, `order:update`, `payment_collection:create`; marking it paid at once also `mark_paid` |
+| Edit an order (`order_edit`) | `order_change:create`, `order_change:update`, `order_change:delete`, `order:update` |
+| Exchange (`exchange`) | `order_exchange:create`, `order_exchange:update`, `order_exchange:delete`, `order:update` |
+| Claim (`claim`) | `order_claim:create`, `order_claim:update`, `order_claim:delete`, `order:update` |
+
+**Customers.** "Spent" follows the dashboard rule: orders that are not canceled or drafts, whose payment is authorized or
+captured, with `current_order_total` (refunds and returns already taken off), per currency. A guest who ordered at the
+checkout has only an email on the customer; the list then shows the name from the newest order's shipping address.
+
+**Discount codes** use Medusa's own promotion routes (`/admin/promotions`): the app creates a standard code for the whole
+order, per cent or a fixed amount in one currency, active at once, with an optional usage limit, and pauses or resumes it
+(status `inactive` / `active`). Codes are upper case, 3 to 32 characters of A–Z, digits, `-` and `_`. When the answer to a
+create is lost, the app looks the code up: the same code with the same discount, active and with the same limit, counts as made; anything else under
+that code is reported as taken. Anything beyond that (rules, buy-get, campaigns) stays in the Medusa admin.
+
+**Order by hand** runs as one workflow: Medusa's draft order with the variants (Medusa prices them for the region), the
+shipping method at the option's price for the region (a region price wins over the plain price of the currency; calculated
+options and return options are refused), then the conversion to a real order (it reserves the stock and emits
+`order.placed` like any order, so the team gets the new-order push and a shop that sends order confirmations sends one),
+a payment collection for the total and, with `paid`, Medusa's "mark as paid". A failure in the middle rolls the earlier
+steps back. The key is taken before anything is made (a pending record in `medusify_operation`) and travels in the
+order's `metadata.medusify_key`; it is marked done once the order is complete. So a second tap or a retry after a lost
+answer is the same order, also when the first try stopped half-way: a repeat that finds the key pending looks for the order
+that carries it and answers with it (`incomplete: true` when it was not yet marked paid), or, when there is none, makes it.
+`GET /admin/medusify/orders/attempts/:key` answers the same question without sending anything; the app asks it after a
+lost answer and keeps the form locked until then. The
+store's default sales channel is used; it must sell from a stock location that holds the items, as for any checkout.
+
+**Changing an order** uses Medusa's own order changes, one kind per request:
+
+- `{ kind: "edit", items: [{ id, quantity }], add: [{ variant_id, quantity }] }`: new quantities (`0` removes a line, never
+  below what is already fulfilled) and new lines;
+- `{ kind: "exchange", return_items: [{ id, quantity }], add: [...] }`: lines back (only fulfilled units that are not on a
+  return yet) and others out, at least one each way;
+- `{ kind: "claim", type: "refund" | "replace", items: [{ id, quantity, reason }], add?: [...] }`: claimed lines with
+  `production_failure`, `wrong_item`, `missing_item` or `other`; `replace` sends `add`.
+
+The preview begins the change, adds its actions, reads Medusa's preview and cancels the change again. The change itself
+does the same, compares the difference with `expected_difference` (what the merchant saw; less than a cent counts as the
+same) and only then requests and confirms it; any failure cancels the begun change, so the order is never left with an
+open one. One change of an order at a time (a lock per order); the key is stored with the result. `difference` is what is
+open to pay (+) or to give back (−) afterwards, as Medusa counts it: an exchange's returned goods count only when the
+return is received, and a claim moves no money by itself. `goods_value` is what those lines are worth, so the app can say
+so. Money is not moved here: the order then shows "mark as paid" or "refund".
+
+**Payment link.** Medusa has no payment link of its own (a payment session needs a cart and a storefront checkout), so the
+app does not offer one. A shop that wants one keeps its provider's link (for example a Stripe payment link) outside.
 
 ### Push kinds
 

@@ -120,7 +120,7 @@ runner({
 
       describe("the app's actions (permissions and the return route)", () => {
         const RETURN_RIGHTS = ["return:create", "return:update", "order:update"]
-        const CATALOG_KEYS = ["catalog", "variant_edit", "product_status", "stock", "stock_new_level", "product_create", "upload", "stock_read"]
+        const CATALOG_KEYS = ["catalog", "variant_edit", "product_status", "stock", "stock_new_level", "product_create", "upload", "stock_read", "customers", "discounts", "discount_create", "discount_edit", "manual_order", "order_edit", "exchange", "claim"]
         const ALL = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true, ...Object.fromEntries(CATALOG_KEYS.map((k) => [k, true])) }
         const NONE = { capture: false, mark_paid: false, cancel: false, cancel_refunding: false, deliver: false, refund: false, return: false, ship: false, ...Object.fromEntries(CATALOG_KEYS.map((k) => [k, false])) }
         const actionsOf = async (who: { headers: Record<string, string> }) =>
@@ -154,6 +154,15 @@ runner({
             ["product_create", ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create", "sales_channel:update"], { product_create: true, stock_new_level: true }],
             ["half of product_create (no sales_channel:update)", ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create"], { stock_new_level: true }],
             ["upload", ["file:create"], { upload: true }],
+            ["customers", ["customer:read", "order:read"], { customers: true }],
+            ["half of customers (no order:read)", ["customer:read"], {}],
+            ["discounts", ["promotion:read"], { discounts: true }],
+            ["discount_create", ["promotion:create"], { discount_create: true }],
+            ["discount_edit", ["promotion:update"], { discount_edit: true }],
+            ["manual_order", ["order:create", "order:update", "payment_collection:create"], { manual_order: true, cancel: true }],
+            ["order_edit", ["order_change:create", "order_change:update", "order_change:delete", "order:update"], { order_edit: true, cancel: true }],
+            ["exchange", ["order_exchange:create", "order_exchange:update", "order_exchange:delete", "order:update"], { exchange: true, cancel: true }],
+            ["claim", ["order_claim:create", "order_claim:update", "order_claim:delete", "order:update"], { claim: true, cancel: true }],
           ]
           for (const [n, [name, keys, on]] of cases.entries()) {
             const who = await createAdmin(getContainer(), `case${n}@example.invalid`)
@@ -169,7 +178,7 @@ runner({
           const upd = await createAdmin(getContainer(), "wild-upd@example.invalid")
           await giveRole(upd.userId, "every-update", ["*:update"])
           // updates only: needs create for capture, refund and return
-          expect(await actionsOf(upd)).toEqual({ ...NONE, mark_paid: true, cancel: true, deliver: true, variant_edit: true, product_status: true })
+          expect(await actionsOf(upd)).toEqual({ ...NONE, mark_paid: true, cancel: true, deliver: true, variant_edit: true, product_status: true, discount_edit: true })
           // order:* covers only the order half of each action, so none of the two-part actions without the other half
           const ord = await createAdmin(getContainer(), "wild-ord@example.invalid")
           await giveRole(ord.userId, "all-order", ["order:*"])

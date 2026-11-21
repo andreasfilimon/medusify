@@ -2,6 +2,38 @@
 
 All notable changes to Medusify. The plugin (`medusify`) and the app in `pwa/` share one version number.
 
+## 0.4.0 - 2026-11-20
+
+Stage 3: customers and special cases. Needs plugin and app at 0.4.0; on an older plugin the new screens show a note and
+everything else works as before.
+
+### Added
+
+- **Customers** (More → Kunden): list with search, orders, spent and last order per customer; profile with contact,
+  addresses, groups and the customer's orders; the order detail links to the profile. Plugin routes
+  `GET /admin/medusify/customers` and `GET /admin/medusify/customers/:id`.
+- **Discount codes** (More → Rabattcodes): list with status, value and uses; create a code (per cent or amount, optional
+  limit) and pause or resume it, through Medusa's own promotion routes. A lost answer to a create does not make a second
+  code.
+- **Order by hand** (Orders → +): customer or guest email, items from the catalog, shipping or pick-up, address (filled
+  from the customer's default address), "money already received". Plugin routes `GET /admin/medusify/orders/setup` and
+  `POST /admin/medusify/orders` (one workflow, idempotent per key, also when a try stopped half-way). After a lost
+  answer the form stays locked until the app has asked the shop (`GET /admin/medusify/orders/attempts/:key`), also after
+  leaving the screen.
+- **Edit, exchange, claim** (order → Bearbeiten): change quantities or add items, take items back for others, record a
+  broken, wrong or missing item for a refund or a replacement. The shop prices the change first; the merchant confirms
+  that amount and the change is made only while it is still the same. Plugin routes
+  `POST /admin/medusify/orders/:id/change/preview` and `POST /admin/medusify/orders/:id/change` (Medusa's order edit,
+  exchange and claim; idempotent per key, one change per order at a time, a failed change is taken back).
+- Eight rights in `GET /admin/medusify/permissions`: `customers`, `discounts`, `discount_create`, `discount_edit`,
+  `manual_order`, `order_edit`, `exchange`, `claim`.
+
+### Fixed
+
+- Plugin: amounts that Medusa hands out as `BigNumber` objects (order previews, summaries) were read as 0.
+- A product or customer deleted in the meantime showed "plugin too old"; a `404` that carries a `medusify:` code is now
+  "not found".
+
 ## 0.3.0 - 2026-11-20
 
 Stage 2: catalog and stock. The app lists products, changes prices and stock, scans barcodes, creates a product with a

@@ -1,10 +1,12 @@
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Fragment, useEffect, useMemo, useRef, useState } from "react"
+import { Link } from "wouter"
 import { useApp } from "../app/context"
 import * as api from "../lib/api"
 import { dayGroup } from "../lib/format"
 import { initialCursor, loadFeedPage, rowKey } from "../lib/feed"
 import type { OrderFilter } from "../lib/orders"
+import { useShopPick } from "../lib/use-shop-pick"
 import { Icon } from "../ui/Icon"
 import { Banner, Empty, ErrorState, Skeleton } from "../ui/kit"
 import { NavBar } from "../ui/Nav"
@@ -16,6 +18,10 @@ const FILTERS: OrderFilter[] = ["open", "shipped", "canceled", "all"]
 export function Orders() {
   const { t, lang, now, scoped, scope, shops, refetchDashboards } = useApp()
   const qc = useQueryClient()
+  const { shop: target } = useShopPick()
+  const targetPerms = useQuery({ queryKey: ["permissions", target?.id], queryFn: () => api.getPermissions(target!), enabled: !!target, staleTime: 5 * 60_000, retry: false })
+  // unknown (old plugin, offline) shows the button; the form itself says what is missing
+  const mayCreate = !!target && targetPerms.data?.manual_order !== false
   const [filter, setFilter] = useState<OrderFilter>("open")
   const [text, setText] = useState("")
   const [q, setQ] = useState("")
@@ -69,7 +75,17 @@ export function Orders() {
 
   return (
     <div className="screen">
-      <NavBar scope title={t("orders.title")} />
+      <NavBar
+        scope
+        title={t("orders.title")}
+        trailing={
+          mayCreate && target ? (
+            <Link className="navbtn" href={`/orders/new/${encodeURIComponent(target.id)}`} aria-label={t("mo.new")}>
+              <Icon name="plus" />
+            </Link>
+          ) : undefined
+        }
+      />
       <Scroll onRefresh={refresh} heading={{ title: t("orders.title") }}>
         <div className="search">
           <Icon name="magnifying-glass" size="sm" />

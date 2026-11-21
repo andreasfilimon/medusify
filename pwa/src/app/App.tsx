@@ -6,8 +6,12 @@ import { AddShop } from "../features/AddShop"
 import { LoginFlow } from "../features/LoginFlow"
 import { markNavigated } from "../lib/nav"
 import { kindOf, viewTransition } from "../lib/transition"
+import { CustomerDetail } from "../screens/CustomerDetail"
+import { Customers } from "../screens/Customers"
+import { Discounts } from "../screens/Discounts"
 import { More } from "../screens/More"
 import { OrderDetail } from "../screens/OrderDetail"
+import { NewOrder } from "../screens/NewOrder"
 import { NewProduct } from "../screens/NewProduct"
 import { Orders } from "../screens/Orders"
 import { ProductDetail, ProductLink } from "../screens/ProductDetail"
@@ -39,7 +43,7 @@ export function App() {
 }
 
 /** Sub pages carry their own back button and an action dock, so the tab bar steps aside there. */
-const NO_TABS = /^\/(orders\/[^/]+|ship|more\/add|products\/.+)(\/|$)/
+const NO_TABS = /^\/(orders\/[^/]+|ship|more\/add|products\/.+|customers|discounts)(\/|$)/
 
 function Shell() {
   const { status, shops, t, retryStart, logoutNote } = useApp()
@@ -78,6 +82,7 @@ function Shell() {
       <Switch>
         <Route path="/"><Start /></Route>
         <Route path="/orders"><Orders /></Route>
+        <Route path="/orders/new/:shop">{(p) => <NewOrder shopId={decodeURIComponent(p.shop)} />}</Route>
         <Route path="/orders/:id">{(p) => <OrderDetail id={decodeURIComponent(p.id)} />}</Route>
         <Route path="/ship"><ShipQueue /></Route>
         <Route path="/products"><Products /></Route>
@@ -86,6 +91,9 @@ function Shell() {
         <Route path="/products/:shop/:id">{(p) => <ProductDetail shopId={decodeURIComponent(p.shop)} id={decodeURIComponent(p.id)} />}</Route>
         {/* The low-stock push opens /products/<id>: the plugin knows the product, not the app's shop id. */}
         <Route path="/products/:id">{(p) => <ProductLink id={decodeURIComponent(p.id)} />}</Route>
+        <Route path="/customers"><Customers /></Route>
+        <Route path="/discounts"><Discounts /></Route>
+        <Route path="/customers/:shop/:id">{(p) => <CustomerDetail shopId={decodeURIComponent(p.shop)} id={decodeURIComponent(p.id)} />}</Route>
         <Route path="/more"><More /></Route>
         <Route path="/more/add"><AddShop onClose={() => navigate("/more")} /></Route>
         <Route><Redirect to="/" replace /></Route>

@@ -68,6 +68,47 @@ export const ADMIN_ACTIONS = {
     { resource: "product", operation: "read" },
     { resource: "inventory_item", operation: "read" },
   ],
+  /** Customers with their order count and spend (Medusa: customer:read on /admin/customers; the numbers come from the orders). */
+  customers: [
+    { resource: "customer", operation: "read" },
+    { resource: "order", operation: "read" },
+  ],
+  /** Discount codes: the list (Medusa: promotion:read on /admin/promotions). */
+  discounts: [{ resource: "promotion", operation: "read" }],
+  /** Create a discount code (Medusa: promotion:create; the app never sends a campaign, so no campaign right). */
+  discount_create: [{ resource: "promotion", operation: "create" }],
+  /** Pause or resume a code (Medusa: promotion:update on POST /admin/promotions/:id). */
+  discount_edit: [{ resource: "promotion", operation: "update" }],
+  /**
+   * An order taken by hand: Medusa's draft order (order:create), its conversion (order:update) and the payment collection
+   * for its total (payment_collection:create). Marking it paid at once needs mark_paid as well (checked in the route).
+   */
+  manual_order: [
+    { resource: "order", operation: "create" },
+    { resource: "order", operation: "update" },
+    { resource: "payment_collection", operation: "create" },
+  ],
+  /** Change quantities or add lines (Medusa's order edit: begin, items, request, confirm, and cancel when it fails). */
+  order_edit: [
+    { resource: "order_change", operation: "create" },
+    { resource: "order_change", operation: "update" },
+    { resource: "order_change", operation: "delete" },
+    { resource: "order", operation: "update" },
+  ],
+  /** Lines back, other lines out (Medusa's exchange). */
+  exchange: [
+    { resource: "order_exchange", operation: "create" },
+    { resource: "order_exchange", operation: "update" },
+    { resource: "order_exchange", operation: "delete" },
+    { resource: "order", operation: "update" },
+  ],
+  /** Broken or wrong lines refunded or sent again (Medusa's claim). */
+  claim: [
+    { resource: "order_claim", operation: "create" },
+    { resource: "order_claim", operation: "update" },
+    { resource: "order_claim", operation: "delete" },
+    { resource: "order", operation: "update" },
+  ],
   /** The plugin's own return route runs the whole return flow in one request. */
   return: [
     { resource: "return", operation: "create" },

@@ -1,5 +1,9 @@
 import { ALL_ALLOWED, type Permissions } from "./actions"
 import type { LookupMatch, ProductPage, ProductView } from "./catalog"
+import type { CustomerDetail, CustomerPage } from "./customers"
+import { sameDiscount, type Discount } from "./discounts"
+import type { ManualOrderInput, OrderSetup } from "./manual-order"
+import type { ChangeBody, ChangeMoney } from "./order-change"
 import type { Dashboard, Order, OrderItem, Shop } from "./types"
 
 export type ApiErrorKind = "unauthorized" | "notfound" | "rejected" | "network" | "server"
@@ -83,7 +87,18 @@ export async function shopFetch(shop: Shop, path: string, init: RequestInit = {}
   }
   if (res.ok) return res
   if (res.status === 401) throw new ApiError("unauthorized", 401)
-  if (res.status === 404) throw new ApiError("notfound", 404)
+  if (res.status === 404) {
+    // The plugin answers a missing product or customer with a medusify code; Medusa's 404 for an unknown route has none,
+    // which is how a plugin too old for the route shows (catalogFailure, "old"). Only the code is kept.
+    let code = ""
+    try {
+      const m = ((await res.clone().json()) as { message?: unknown }).message
+      if (typeof m === "string" && m.startsWith("medusify:")) code = m
+    } catch {
+      /* body is not JSON */
+    }
+    throw new ApiError("notfound", 404, code || "notfound")
+  }
   let message = ""
   try {
     message = ((await res.clone().json()) as { message?: string }).message ?? ""
@@ -248,7 +263,7 @@ export async function getDashboard(shop: Shop, timezone: string): Promise<Dashbo
 }
 
 export const ORDER_FIELDS = [
-  "id", "display_id", "status", "created_at", "email", "currency_code", "payment_status", "fulfillment_status", "sales_channel_id",
+  "id", "display_id", "status", "version", "created_at", "email", "customer_id", "currency_code", "payment_status", "fulfillment_status", "sales_channel_id",
   "total", "subtotal", "shipping_total", "tax_total", "item_total",
   "*items", "*items.detail", "*shipping_address", "*shipping_methods", "*fulfillments", "*fulfillments.items", "*fulfillments.labels",
   "*payment_collections", "*payment_collections.payments", "*payment_collections.payments.captures", "*payment_collections.payments.refunds",
@@ -268,12 +283,13 @@ const LIST_FIELDS = "id,display_id,status,created_at,email,currency_code,payment
 export const PAGE_SIZE = 50
 
 export type OrderScope = "active" | "canceled" | "any"
-export type OrderQuery = { offset: number; q?: string; scope: OrderScope }
+export type OrderQuery = { offset: number; q?: string; scope: OrderScope; customerId?: string }
 
 /** Query string for the order list. Medusa wants one `status[]` per value; a comma list ends up as one enum value (500). */
 export function orderListParams(query: OrderQuery): URLSearchParams {
   const params = new URLSearchParams({ fields: LIST_FIELDS, order: "-created_at", limit: String(PAGE_SIZE), offset: String(query.offset) })
   if (query.q) params.set("q", query.q)
+  if (query.customerId) params.set("customer_id", query.customerId)
   // The server filters only by status; shipped/open is derived from fulfillment_status on the client (measured).
   const statuses = query.scope === "canceled" ? ["canceled"] : query.scope === "active" ? ["pending", "requires_action", "completed"] : []
   for (const status of statuses) params.append("status[]", status)
@@ -785,4 +801,112 @@ export async function unregisterPush(shop: Shop, endpoint: string): Promise<void
 
 export async function testPush(shop: Shop): Promise<{ sent: number; failed: number; removed: number }> {
   return json(await post(shop, "/admin/medusify/push-subscriptions/test"))
+}
+
+// ---- Customers (Stufe 3) ----
+
+export const CUSTOMER_PAGE = 30
+
+export async function listCustomers(shop: Shop, query: { q?: string; offset?: number; limit?: number }): Promise<CustomerPage> {
+  const p = new URLSearchParams({ offset: String(query.offset ?? 0), limit: String(query.limit ?? CUSTOMER_PAGE) })
+  if (query.q) p.set("q", query.q)
+  return json<CustomerPage>(await shopFetch(shop, `/admin/medusify/customers?${p}`))
+}
+
+export async function getCustomer(shop: Shop, id: string): Promise<CustomerDetail> {
+  return (await json<{ customer: CustomerDetail }>(await shopFetch(shop, `/admin/medusify/customers/${encodeURIComponent(id)}`))).customer
+}
+
+// ---- Discount codes (Stufe 3): Medusa's own promotion routes ----
+
+const DISCOUNT_FIELDS = "id,code,status,is_automatic,limit,used,created_at,application_method.type,application_method.value,application_method.currency_code,application_method.target_type"
+export const DISCOUNT_PAGE = 50
+
+export async function listDiscounts(shop: Shop, query: { q?: string; offset?: number }): Promise<{ promotions: Discount[]; count: number; offset: number }> {
+  const p = new URLSearchParams({ fields: DISCOUNT_FIELDS, limit: String(DISCOUNT_PAGE), offset: String(query.offset ?? 0), order: "-created_at" })
+  if (query.q) p.set("q", query.q)
+  const body = await json<{ promotions: Discount[]; count: number; offset?: number }>(await shopFetch(shop, `/admin/promotions?${p}`))
+  return { promotions: body.promotions, count: body.count, offset: body.offset ?? query.offset ?? 0 }
+}
+
+async function discountByCode(shop: Shop, code: string): Promise<Discount | null> {
+  const p = new URLSearchParams({ fields: DISCOUNT_FIELDS, code, limit: "1" })
+  const body = await json<{ promotions: Discount[] }>(await shopFetch(shop, `/admin/promotions?${p}`))
+  return body.promotions.find((d) => d.code === code) ?? null
+}
+
+export type NewDiscount = { code: string; type: "percentage" | "fixed"; value: number; currency_code: string | null; limit: number | null }
+
+/**
+ * A code for the whole order, active at once. Medusa keeps codes unique, so a second tap or a retry after a lost answer
+ * cannot make a second code: it is refused, and the app then looks the code up — the same code with the same discount
+ * is the one this request made.
+ */
+export async function createDiscount(shop: Shop, input: NewDiscount): Promise<Discount> {
+  const body = {
+    code: input.code,
+    type: "standard",
+    status: "active",
+    is_automatic: false,
+    limit: input.limit,
+    application_method: {
+      type: input.type,
+      target_type: "order",
+      allocation: "across",
+      value: input.value,
+      ...(input.type === "fixed" ? { currency_code: input.currency_code } : {}),
+    },
+  }
+  try {
+    return (await json<{ promotion: Discount }>(await post(shop, "/admin/promotions", body))).promotion
+  } catch (e) {
+    if (e instanceof ApiError && e.kind === "unauthorized") throw e
+    const found = await discountByCode(shop, input.code).catch(() => null)
+    if (found && sameDiscount(found, input)) return found
+    if (found) throw new ApiError("rejected", 400, DISCOUNT_CODE_TAKEN)
+    throw e
+  }
+}
+
+export const DISCOUNT_CODE_TAKEN = "medusify:code_taken"
+
+export async function setDiscountStatus(shop: Shop, id: string, status: "active" | "inactive"): Promise<void> {
+  await post(shop, `/admin/promotions/${encodeURIComponent(id)}`, { status })
+}
+
+/** Regions and flat shipping options with their price per region, for an order taken by hand (plugin 0.4.0). */
+export async function orderSetup(shop: Shop): Promise<OrderSetup> {
+  return json<OrderSetup>(await shopFetch(shop, "/admin/medusify/orders/setup"))
+}
+
+/**
+ * An order taken by hand. The key makes a repeat the same order: the plugin answers a known key with the order it made
+ * (`replayed`), so a lost answer is retried with the same key and never makes a second order.
+ */
+/**
+ * `incomplete`: a repeat found the order of a first try that stopped half-way (made, not yet marked paid); it is not made
+ * again, the merchant finishes it on the order.
+ */
+export async function createManualOrder(shop: Shop, input: ManualOrderInput): Promise<{ order_id: string; display_id: number | null; replayed: boolean; incomplete?: boolean }> {
+  return json(await post(shop, "/admin/medusify/orders", input))
+}
+
+export type ManualOrderAttempt = { state: "none" } | { state: "done" | "incomplete"; order_id: string; display_id: number | null }
+
+/** What the order by hand sent with this key came to; the app asks after a lost answer (plugin 0.4.0). */
+export async function manualOrderAttempt(shop: Shop, key: string): Promise<ManualOrderAttempt> {
+  return json(await shopFetch(shop, `/admin/medusify/orders/attempts/${encodeURIComponent(key)}`))
+}
+
+/** What a change would do to the money; nothing stays changed in the shop (plugin 0.4.0). */
+export async function previewChange(shop: Shop, orderId: string, change: ChangeBody): Promise<ChangeMoney> {
+  return json(await post(shop, `/admin/medusify/orders/${encodeURIComponent(orderId)}/change/preview`, { change }))
+}
+
+/**
+ * Makes the change the merchant confirmed with this difference. Another difference now is refused
+ * (`medusify:difference_changed`) and changes nothing; a repeat of the key answers from the first result.
+ */
+export async function applyChange(shop: Shop, orderId: string, change: ChangeBody, expected: number, key: string): Promise<ChangeMoney & { replayed: boolean }> {
+  return json(await post(shop, `/admin/medusify/orders/${encodeURIComponent(orderId)}/change`, { change, expected_difference: expected, idempotency_key: key }))
 }

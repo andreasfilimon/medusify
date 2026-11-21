@@ -30,6 +30,12 @@ type OrderOpts = {
   shipping?: number
   status?: string
   paid?: boolean
+  /**
+   * The (demo) customer the order belongs to. For a guest (no account) Medusa keeps the customer only when the order
+   * email is the customer's (core-flows find-or-create-customer), so pass `email` too.
+   */
+  customerId?: string
+  email?: string
 }
 
 /** Demo order only: invented buyer, no real customer data. */
@@ -41,8 +47,9 @@ export async function createDemoOrder(container: MedusaContainer, o: OrderOpts) 
     input: {
       region_id: o.regionId,
       currency_code: currency,
-      email: "buyer@example.invalid",
+      email: o.email ?? "buyer@example.invalid",
       status: o.status,
+      ...(o.customerId ? { customer_id: o.customerId } : {}),
       items,
       shipping_methods: o.noShippingMethod ? [] : [{ name: "Standard", amount: shipping, ...(o.shippingOptionId ? { shipping_option_id: o.shippingOptionId } : {}) }],
       shipping_address: {

@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest"
-import { AMOUNT_DECIMALS, ApiError, BELOW_ZERO, CURRENCY_NOT_SUPPORTED, NOTHING_TO_UNDO, NO_LOCATION, catalogFailure } from "../src/lib/api"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { AMOUNT_DECIMALS, ApiError, getProduct, BELOW_ZERO, CURRENCY_NOT_SUPPORTED, NOTHING_TO_UNDO, NO_LOCATION, catalogFailure } from "../src/lib/api"
 import { catalogErrorText } from "../src/lib/catalog-text"
 import { makeT } from "../src/lib/i18n"
+import { shop } from "./fixtures"
 
 const t = makeT("de")
 
@@ -52,5 +53,22 @@ describe("the sentence for it", () => {
   it("a missing right and an old plugin have their own sentence", () => {
     expect(text(new ApiError("rejected", 403, "x")).text).toContain("Berechtigung")
     expect(text(new ApiError("notfound", 404, "Not Found")).text).toContain("0.3.0")
+  })
+})
+
+describe("a 404 as it comes over the wire", () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const answer = (body: string, status = 404) => vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status, headers: { "content-type": "application/json" } })))
+  const failureOf = (p: Promise<unknown>) => p.then(() => null, (e: unknown) => catalogFailure(e))
+
+  it("the plugin's code reaches the screen: a deleted product is gone, not an old plugin", async () => {
+    answer(JSON.stringify({ type: "not_found", message: "medusify:no_product" }))
+    expect(await failureOf(getProduct(shop("s1"), "prod_1"))).toEqual({ kind: "rejected", code: "medusify:no_product" })
+  })
+  it("Medusa's own 404 (no route, or any other message) still means a plugin too old for the route", async () => {
+    answer("Cannot GET /admin/medusify/products/prod_1")
+    expect(await failureOf(getProduct(shop("s1"), "prod_1"))).toEqual({ kind: "old" })
+    answer(JSON.stringify({ type: "not_found", message: "Product with id: prod_1 was not found" }))
+    expect(await failureOf(getProduct(shop("s1"), "prod_1"))).toEqual({ kind: "old" })
   })
 })

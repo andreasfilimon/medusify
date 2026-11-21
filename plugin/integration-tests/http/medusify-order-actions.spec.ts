@@ -500,6 +500,7 @@ medusaIntegrationTestRunner({
           expect(res.data.actions).toEqual({
             capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true,
             catalog: true, variant_edit: true, product_status: true, stock: true, stock_new_level: true, product_create: true, upload: true, stock_read: true,
+            customers: true, discounts: true, discount_create: true, discount_edit: true, manual_order: true, order_edit: true, exchange: true, claim: true,
           })
         })
 

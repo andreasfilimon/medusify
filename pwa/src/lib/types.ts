@@ -50,6 +50,8 @@ export type OrderItem = {
   requires_shipping?: boolean | null
   id: string
   title: string
+  /** The variant the line was sold as; null for a line without one (a custom line) or a deleted variant. */
+  variant_id?: string | null
   product_title?: string | null
   variant_title?: string | null
   quantity: number
@@ -63,6 +65,8 @@ export type OrderItem = {
     return_requested_quantity?: number
     return_received_quantity?: number
     return_dismissed_quantity?: number
+    /** Units a claim took back as refunded (Medusa's write-off): the order total stays, this count moves. */
+    written_off_quantity?: number
   }
   /** Only the inventory links are read, for the quantity of a kit line in a fulfillment. `null` when the variant was deleted. */
   variant?: { inventory_items?: { inventory_item_id?: string | null; required_quantity?: number | null }[] } | null
@@ -99,10 +103,13 @@ export type Order = {
   status: string
   created_at: string
   email?: string | null
+  customer_id?: string | null
   currency_code: string
   payment_status: string
   fulfillment_status: string
   total: number
+  /** Medusa counts every confirmed change (edit, exchange, claim, return) up by one. */
+  version?: number
   subtotal?: number
   item_total?: number
   shipping_total?: number

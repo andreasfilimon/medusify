@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
-import { useLocation, useSearch } from "wouter"
+import { Link, useLocation, useSearch } from "wouter"
 import { useApp } from "../app/context"
 import * as api from "../lib/api"
 import { ApiError } from "../lib/api"
@@ -152,6 +152,12 @@ export function OrderDetail({ id }: { id: string }) {
             {order.shipping_methods?.[0]?.name ? <div className="kv"><dt>{t("detail.shipping")}</dt><dd>{order.shipping_methods[0].name}</dd></div> : null}
             {contact.phone ? <a className="row" href={contact.phone.href}><span className="row-main"><span className="row-title reg tint">{contact.phone.text}</span><span className="row-sub">{t("detail.call")}</span></span></a> : null}
             {contact.email ? <a className="row" href={contact.email.href}><span className="row-main"><span className="row-title reg tint wrap">{contact.email.text}</span><span className="row-sub">{t("detail.mail")}</span></span></a> : null}
+            {order.customer_id ? (
+              <Link className="row single" href={`/customers/${encodeURIComponent(shop.id)}/${encodeURIComponent(order.customer_id)}`}>
+                <span className="row-main"><span className="row-title reg tint">{t("cust.profile")}</span></span>
+                <Icon name="caret-right" size="sm" />
+              </Link>
+            ) : null}
           </div>
         </Section>
 

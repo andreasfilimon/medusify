@@ -6,7 +6,7 @@ import { dayAndMonthStart } from "./time"
 
 const PAGE_SIZE = 500
 /** Orders in other states (canceled, draft) never count as revenue. */
-const REVENUE_STATUSES = ["pending", "completed", "archived", "requires_action"]
+export const REVENUE_STATUSES = ["pending", "completed", "archived", "requires_action"]
 /** Orders in these states can still wait for shipping. */
 export const OPEN_STATUSES = ["pending", "requires_action"]
 /**

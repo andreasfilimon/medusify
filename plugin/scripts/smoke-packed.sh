@@ -53,5 +53,12 @@ check "asking with a key too short is refused" 400 "$(code "${AUTH[@]}" "$BASE/a
 check "order by hand without items is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"region_id":"reg_none","email":"smoke@example.invalid","items":[],"idempotency_key":"smoke-0000-0000"}' "$BASE/admin/medusify/orders")"
 check "change preview with a bad body is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"change":{"kind":"other"}}' "$BASE/admin/medusify/orders/order_none/change/preview")"
 check "rights list has the new rights" "True" "$(curl -s "${AUTH[@]}" "$BASE/admin/medusify/permissions" | python3 -c 'import sys,json; a=json.load(sys.stdin).get("actions",{}); print(all(k in a for k in ["customers","discounts","manual_order","order_edit","exchange","claim"]))' 2>/dev/null || echo err)"
+# 0.5.0: reports, daily summary, rights with the roles flag.
+check "report of a week" 200 "$(code "${AUTH[@]}" "$BASE/admin/medusify/reports?from=2026-11-01&to=2026-11-07&tz=Europe/Vienna")"
+check "report with the end before the start is refused" 400 "$(code "${AUTH[@]}" "$BASE/admin/medusify/reports?from=2026-11-07&to=2026-11-01")"
+check "report without login" 401 "$(code "$BASE/admin/medusify/reports?from=2026-11-01&to=2026-11-07")"
+check "daily summary on for the smoke device" '{"hour":20,"tz":"Europe/Vienna"}' "$(curl -s -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"endpoint":"https://push.example.invalid/send/smoke","daily_summary":{"hour":20,"tz":"Europe/Vienna"}}' "$BASE/admin/medusify/push-preferences" | python3 -c 'import sys,json; print(json.dumps(json.load(sys.stdin).get("daily_summary"),separators=(",",":")))' 2>/dev/null || echo err)"
+check "daily summary with a bad hour is refused" 400 "$(code -X POST "${AUTH[@]}" -H 'content-type: application/json' -d '{"endpoint":"https://push.example.invalid/send/smoke","daily_summary":{"hour":24,"tz":"UTC"}}' "$BASE/admin/medusify/push-preferences")"
+check "rights list has reports and the roles flag" "True" "$(curl -s "${AUTH[@]}" "$BASE/admin/medusify/permissions" | python3 -c 'import sys,json; b=json.load(sys.stdin); print("reports" in b.get("actions",{}) and isinstance(b.get("rbac"), bool))' 2>/dev/null || echo err)"
 check "unsubscribe" 200 "$(code -X DELETE "${AUTH[@]}" "$BASE/admin/medusify/push-subscriptions?endpoint=https://push.example.invalid/send/smoke")"
 exit $fail

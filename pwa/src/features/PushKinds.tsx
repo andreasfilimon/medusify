@@ -2,13 +2,19 @@ import { useQueries, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
 import { useApp } from "../app/context"
 import * as api from "../lib/api"
-import type { PushPrefs } from "../lib/api"
+import type { DailySummary, PushPrefs } from "../lib/api"
+import { deviceTimezone } from "../lib/format"
+import { Icon } from "../ui/Icon"
 import { Monogram, Section } from "../ui/kit"
 import { Stepper } from "../ui/Stepper"
 import { useToast } from "../ui/Toast"
 
 const KINDS = ["canceled", "return_requested", "low_stock"] as const
 type Kind = (typeof KINDS)[number]
+
+/** The hour a daily summary starts with when it is switched on: the evening, after most orders of the day. */
+export const DEFAULT_SUMMARY_HOUR = 20
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
 /** A tap on the stepper is saved this long after the last tap, so five taps are one request. */
 const THRESHOLD_SAVE_MS = 700
@@ -20,7 +26,7 @@ export const MAX_THRESHOLD = 9999
  * is older than 0.3.0 shows no low-stock row.
  */
 export function PushKinds() {
-  const { t, shops, currentEndpoint } = useApp()
+  const { t, lang, shops, currentEndpoint } = useApp()
   const qc = useQueryClient()
   const toast = useToast()
   const [endpoint, setEndpoint] = useState<string | null>(null)
@@ -83,6 +89,23 @@ export function PushKinds() {
     }, THRESHOLD_SAVE_MS)
   }
 
+  async function summary(shopId: string, value: DailySummary | null) {
+    const shop = authed.find((s) => s.id === shopId)
+    if (!shop || !endpoint) return
+    setSaving(`${shopId}:daily`)
+    try {
+      const next = await api.setDailySummary(shop, endpoint, value)
+      qc.setQueryData(["push-prefs", shopId, endpoint], next)
+    } catch {
+      toast.show(t("more.pushKindFailed"), { error: true })
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const tz = deviceTimezone()
+  const hourText = (h: number) => new Intl.DateTimeFormat(lang === "de" ? "de-AT" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }).format(new Date(Date.UTC(2026, 0, 1, h)))
+
   return (
     <Section id="pushkinds" title={t("more.pushKinds")}>
       {rows.map(({ shop, prefs }) => {
@@ -108,11 +131,29 @@ export function PushKinds() {
                 <Stepper value={threshold} max={MAX_THRESHOLD} onChange={(n) => changeThreshold(shop.id, n)} label={t("more.lowStockFrom")} />
               </div>
             ) : null}
+            {prefs.daily_summary !== undefined ? (
+              <label className="row single">
+                <span className="row-main"><span className="row-title reg">{t("more.daily")}</span></span>
+                <input type="checkbox" role="switch" checked={prefs.daily_summary !== null} disabled={saving === `${shop.id}:daily`} onChange={(e) => void summary(shop.id, e.target.checked ? { hour: DEFAULT_SUMMARY_HOUR, tz } : null)} />
+              </label>
+            ) : null}
+            {prefs.daily_summary ? (
+              <label className="row single">
+                <span className="row-main"><span className="row-title reg">{t("more.dailyAt")}</span></span>
+                <span className="inline-select">
+                  <select value={prefs.daily_summary.hour} disabled={saving === `${shop.id}:daily`} aria-label={`${t("more.daily")}, ${t("more.dailyAt")}`} onChange={(e) => void summary(shop.id, { hour: Number(e.target.value), tz })}>
+                    {HOURS.map((h) => <option key={h} value={h}>{hourText(h)}</option>)}
+                  </select>
+                  <Icon name="caret-down" size="xs" />
+                </span>
+              </label>
+            ) : null}
           </div>
         )
       })}
       <p className="foot">{t("more.pushKindsHint")}</p>
       {rows.some((r) => r.prefs.low_stock_threshold >= 0 && r.prefs.kinds.low_stock) ? <p className="foot">{t("more.lowStockHint")}</p> : null}
+      {rows.some((r) => r.prefs.daily_summary) ? <p className="foot">{t("more.dailyHint", { tz })}</p> : null}
     </Section>
   )
 }

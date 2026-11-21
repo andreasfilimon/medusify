@@ -109,3 +109,26 @@ export function buildLowStockPayload(input: {
     tag: `low-stock-${inventoryItemId}`,
   }
 }
+
+export function buildDailySummaryPayload(input: {
+  /** The subscription (one device, one shop): today's summary replaces yesterday's, never another shop's. */
+  subscriptionId: string
+  storeLabel: string
+  locale: MedusifyLocale
+  orders: number
+  revenue: { currency_code: string; amount: number }[]
+  toShip: number
+}): PushPayload {
+  const { subscriptionId, storeLabel, locale, orders, revenue, toShip } = input
+  const heading = locale === "en" ? "Today" : "Heute"
+  const count = locale === "en" ? `${orders} ${orders === 1 ? "order" : "orders"}` : `${orders} ${orders === 1 ? "Bestellung" : "Bestellungen"}`
+  // one amount per currency, never added up
+  const money = revenue.map((r) => formatMoney(r.amount, r.currency_code, locale))
+  const ship = toShip > 0 ? [locale === "en" ? `${toShip} to ship` : `${toShip} zu versenden`] : []
+  return {
+    title: `${storeLabel}: ${heading}`,
+    body: [count, ...money, ...ship].join(" · "),
+    data: { url: "/medusify/", kind: "daily_summary", shop: storeLabel, badge: toShip },
+    tag: `daily-summary-${subscriptionId}`,
+  }
+}

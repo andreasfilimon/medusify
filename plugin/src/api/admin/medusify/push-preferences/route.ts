@@ -20,9 +20,11 @@ const toMap = (disabled: unknown) => {
   return Object.fromEntries(SWITCHABLE_KINDS.map((kind) => [kind, !off.includes(kind)]))
 }
 
-const answer = (sub: { disabled_kinds?: unknown; low_stock_threshold?: unknown }) => ({
+type Prefs = { disabled_kinds?: unknown; low_stock_threshold?: unknown; daily_summary_hour?: number | null; daily_summary_tz?: string | null }
+const answer = (sub: Prefs) => ({
   kinds: toMap(sub.disabled_kinds),
   low_stock_threshold: cleanThreshold(sub.low_stock_threshold),
+  daily_summary: typeof sub.daily_summary_hour === "number" && sub.daily_summary_tz ? { hour: sub.daily_summary_hour, tz: sub.daily_summary_tz } : null,
 })
 
 /** GET /admin/medusify/push-preferences?endpoint= — which optional push kinds this device gets, and its low-stock threshold. */
@@ -35,7 +37,8 @@ export async function GET(req: AuthenticatedMedusaRequest, res: MedusaResponse) 
 type Locking = { execute<R>(keys: string | string[], job: () => Promise<R>, args?: { timeout?: number; expire?: number }): Promise<R> }
 
 /**
- * POST /admin/medusify/push-preferences — switch one optional kind on or off for this device, or set its low-stock threshold.
+ * POST /admin/medusify/push-preferences — switch one optional kind on or off for this device, set its low-stock threshold,
+ * or choose the hour of its daily summary (null = off).
  *
  * The list of switched-off kinds is read, changed and written back. Two switches in quick succession (two taps, or two
  * requests of a retry) would both read the old list and the second write would drop the first switch, so the whole
@@ -52,6 +55,11 @@ export async function POST(req: AuthenticatedMedusaRequest<PostPushPreference>, 
       if ("low_stock_threshold" in body) {
         await service.updatePushSubscriptions({ id: subscription.id, low_stock_threshold: body.low_stock_threshold })
         return answer({ ...subscription, low_stock_threshold: body.low_stock_threshold })
+      }
+      if ("daily_summary" in body) {
+        const next = { daily_summary_hour: body.daily_summary?.hour ?? null, daily_summary_tz: body.daily_summary?.tz ?? null }
+        await service.updatePushSubscriptions({ id: subscription.id, ...next })
+        return answer({ ...subscription, ...next })
       }
       const off = new Set(cleanDisabledKinds(subscription.disabled_kinds))
       if (body.enabled) off.delete(body.kind)

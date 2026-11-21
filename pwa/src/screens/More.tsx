@@ -1,8 +1,11 @@
+import { useQueries } from "@tanstack/react-query"
 import { useState } from "react"
 import { Link, useLocation } from "wouter"
 import pkg from "../../package.json"
 import { useApp } from "../app/context"
 import { InstallHint } from "../features/InstallHint"
+import * as api from "../lib/api"
+import { mayInAnyShop, type ActionKey } from "../lib/actions"
 import { PushKinds } from "../features/PushKinds"
 import type { LangPref, ThemePref } from "../lib/prefs"
 import { Icon } from "../ui/Icon"
@@ -19,6 +22,13 @@ export function More() {
   const [removing, setRemoving] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const home = shops.find((s) => s.home)
+  // A link is left out only when every signed-in shop has answered that the role may not (an old plugin or a failed read
+  // answers "allowed", see getPermissions); the screen behind it still words a refusal.
+  const authed = shops.filter((s) => s.home || s.token)
+  const perms = useQueries({
+    queries: authed.map((shop) => ({ queryKey: ["permissions", shop.id], queryFn: () => api.getPermissions(shop), staleTime: 5 * 60_000, retry: false })),
+  })
+  const mayAnywhere = (key: ActionKey) => mayInAnyShop(perms.map((q) => q.data), key)
   const target = shops.find((s) => s.id === removing)
 
   async function enable() {
@@ -52,14 +62,30 @@ export function More() {
       <NavBar title={t("more.title")} />
       <Scroll heading={{ title: t("more.title") }}>
         <div className="group">
-          <Link className="row single" href="/customers">
-            <Icon name="users" size="sm" />
-            <span className="row-main"><span className="row-title reg">{t("cust.title")}</span></span>
-            <Icon name="caret-right" size="sm" />
-          </Link>
-          <Link className="row single" href="/discounts">
-            <Icon name="tag" size="sm" />
-            <span className="row-main"><span className="row-title reg">{t("disc.title")}</span></span>
+          {mayAnywhere("reports") ? (
+            <Link className="row single" href="/reports">
+              <Icon name="chart-line" size="sm" />
+              <span className="row-main"><span className="row-title reg">{t("rep.title")}</span></span>
+              <Icon name="caret-right" size="sm" />
+            </Link>
+          ) : null}
+          {mayAnywhere("customers") ? (
+            <Link className="row single" href="/customers">
+              <Icon name="users" size="sm" />
+              <span className="row-main"><span className="row-title reg">{t("cust.title")}</span></span>
+              <Icon name="caret-right" size="sm" />
+            </Link>
+          ) : null}
+          {mayAnywhere("discounts") ? (
+            <Link className="row single" href="/discounts">
+              <Icon name="tag" size="sm" />
+              <span className="row-main"><span className="row-title reg">{t("disc.title")}</span></span>
+              <Icon name="caret-right" size="sm" />
+            </Link>
+          ) : null}
+          <Link className="row single" href="/more/rights">
+            <Icon name="identification-badge" size="sm" />
+            <span className="row-main"><span className="row-title reg">{t("rights.title")}</span></span>
             <Icon name="caret-right" size="sm" />
           </Link>
         </div>

@@ -33,6 +33,19 @@ export const GetDashboardQuery = z.object({
 })
 export type GetDashboardQuery = z.infer<typeof GetDashboardQuery>
 
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "a day as YYYY-MM-DD")
+/** A report: `from` to `to`, both included, on the calendar of `tz` (lib/report.ts checks the dates and the length). */
+export const GetReportQuery = z.object({
+  from: day,
+  to: day,
+  tz: z
+    .string()
+    .max(64)
+    .refine(isValidTimeZone, { message: "tz must be an IANA time zone, e.g. Europe/Vienna" })
+    .default("UTC"),
+})
+export type GetReportQuery = z.infer<typeof GetReportQuery>
+
 export const GetPushPreferencesQuery = z.object({ endpoint: endpointSchema })
 export type GetPushPreferencesQuery = z.infer<typeof GetPushPreferencesQuery>
 
@@ -46,6 +59,16 @@ export const PostPushPreference = z.union([
     endpoint: endpointSchema,
     /** Low-stock push: at this many units or fewer this device is told. 0 = only when it is gone. */
     low_stock_threshold: z.number().int().min(0).max(MAX_LOW_STOCK_THRESHOLD),
+  }),
+  z.object({
+    endpoint: endpointSchema,
+    /** Daily summary: at this hour (0–23) on the clock of `tz`; null switches it off. */
+    daily_summary: z
+      .object({
+        hour: z.number().int().min(0).max(23),
+        tz: z.string().max(64).refine(isValidTimeZone, { message: "tz must be an IANA time zone, e.g. Europe/Vienna" }),
+      })
+      .nullable(),
   }),
 ])
 export type PostPushPreference = z.infer<typeof PostPushPreference>

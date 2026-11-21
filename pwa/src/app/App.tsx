@@ -9,6 +9,8 @@ import { kindOf, viewTransition } from "../lib/transition"
 import { CustomerDetail } from "../screens/CustomerDetail"
 import { Customers } from "../screens/Customers"
 import { Discounts } from "../screens/Discounts"
+import { Reports } from "../screens/Reports"
+import { Rights } from "../screens/Rights"
 import { More } from "../screens/More"
 import { OrderDetail } from "../screens/OrderDetail"
 import { NewOrder } from "../screens/NewOrder"
@@ -95,6 +97,8 @@ function Shell() {
         <Route path="/discounts"><Discounts /></Route>
         <Route path="/customers/:shop/:id">{(p) => <CustomerDetail shopId={decodeURIComponent(p.shop)} id={decodeURIComponent(p.id)} />}</Route>
         <Route path="/more"><More /></Route>
+        <Route path="/reports"><Reports /></Route>
+        <Route path="/more/rights"><Rights /></Route>
         <Route path="/more/add"><AddShop onClose={() => navigate("/more")} /></Route>
         <Route><Redirect to="/" replace /></Route>
       </Switch>

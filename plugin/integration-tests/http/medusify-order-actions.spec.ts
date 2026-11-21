@@ -321,13 +321,14 @@ medusaIntegrationTestRunner({
           expect((await api.get(`/admin/medusify/push-preferences?endpoint=${q}`, { headers: admin.headers })).data).toEqual({
             kinds: { canceled: true, return_requested: true, low_stock: true },
             low_stock_threshold: 5,
+            daily_summary: null,
           })
           const off = await api.post(
             "/admin/medusify/push-preferences",
             { endpoint: sub(1).endpoint, kind: "canceled", enabled: false },
             { headers: admin.headers }
           )
-          expect(off.data).toEqual({ kinds: { canceled: false, return_requested: true, low_stock: true }, low_stock_threshold: 5 })
+          expect(off.data).toEqual({ kinds: { canceled: false, return_requested: true, low_stock: true }, low_stock_threshold: 5, daily_summary: null })
           const other = await api.get(`/admin/medusify/push-preferences?endpoint=${encodeURIComponent(sub(2).endpoint)}`, { headers: admin.headers })
           expect(other.data.kinds).toEqual({ canceled: true, return_requested: true, low_stock: true })
           const on = await api.post(
@@ -374,10 +375,10 @@ medusaIntegrationTestRunner({
           await seed(2, admin.userId)
           const post = (endpoint: string, body: Record<string, unknown>) => api.post("/admin/medusify/push-preferences", { endpoint, ...body }, { headers: admin.headers })
           const off = await post(sub(1).endpoint, { kind: "low_stock", enabled: false })
-          expect(off.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: false }, low_stock_threshold: 5 })
-          const set = await post(sub(1).endpoint, { low_stock_threshold: 12 })
+          expect(off.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: false }, low_stock_threshold: 5, daily_summary: null })
+          const set = await post(sub(1).endpoint, { low_stock_threshold: 12, daily_summary: null })
           // the threshold does not touch the switches, and the switch does not touch the threshold
-          expect(set.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: false }, low_stock_threshold: 12 })
+          expect(set.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: false }, low_stock_threshold: 12, daily_summary: null })
           const other = await api.get(`/admin/medusify/push-preferences?endpoint=${encodeURIComponent(sub(2).endpoint)}`, { headers: admin.headers })
           expect(other.data.low_stock_threshold).toBe(5)
           expect((await post(sub(1).endpoint, { low_stock_threshold: 0 })).data.low_stock_threshold).toBe(0)
@@ -386,6 +387,23 @@ medusaIntegrationTestRunner({
           }
           expect((await service().listPushSubscriptions({ endpoint: sub(1).endpoint }))[0].low_stock_threshold).toBe(0)
           await expect(post(sub(9).endpoint, { low_stock_threshold: 3 })).rejects.toMatchObject({ response: { status: 404 } })
+        })
+
+        it("the daily summary is off by default, gets an hour and a time zone per device, and switches off again", async () => {
+          await seed(1, admin.userId)
+          await seed(2, admin.userId)
+          const post = (endpoint: string, body: Record<string, unknown>) => api.post("/admin/medusify/push-preferences", { endpoint, ...body }, { headers: admin.headers })
+          const on = await post(sub(1).endpoint, { daily_summary: { hour: 20, tz: "Europe/Vienna" } })
+          expect(on.data).toEqual({ kinds: { canceled: true, return_requested: true, low_stock: true }, low_stock_threshold: 5, daily_summary: { hour: 20, tz: "Europe/Vienna" } })
+          const row = (await service().listPushSubscriptions({ endpoint: sub(1).endpoint }))[0]
+          expect([row.daily_summary_hour, row.daily_summary_tz]).toEqual([20, "Europe/Vienna"])
+          // the other device of the same user keeps its own setting
+          expect((await api.get(`/admin/medusify/push-preferences?endpoint=${encodeURIComponent(sub(2).endpoint)}`, { headers: admin.headers })).data.daily_summary).toBeNull()
+          for (const bad of [{ hour: 24, tz: "Europe/Vienna" }, { hour: -1, tz: "UTC" }, { hour: 7.5, tz: "UTC" }, { hour: 7, tz: "Mars/Base" }, { hour: 7 }]) {
+            await expect(post(sub(1).endpoint, { daily_summary: bad })).rejects.toMatchObject({ response: { status: 400 } })
+          }
+          expect((await post(sub(1).endpoint, { daily_summary: null })).data.daily_summary).toBeNull()
+          expect((await service().listPushSubscriptions({ endpoint: sub(1).endpoint }))[0].daily_summary_hour).toBeNull()
         })
 
         it("a device that is not subscribed gets 404, not a made-up answer", async () => {
@@ -500,8 +518,9 @@ medusaIntegrationTestRunner({
           expect(res.data.actions).toEqual({
             capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true,
             catalog: true, variant_edit: true, product_status: true, stock: true, stock_new_level: true, product_create: true, upload: true, stock_read: true,
-            customers: true, discounts: true, discount_create: true, discount_edit: true, manual_order: true, order_edit: true, exchange: true, claim: true,
+            customers: true, discounts: true, discount_create: true, discount_edit: true, manual_order: true, order_edit: true, exchange: true, claim: true, reports: true,
           })
+          expect(res.data.rbac).toBe(false) // the app says "no roles in this shop", not "your role may do everything"
         })
 
         it("needs a login", async () => {

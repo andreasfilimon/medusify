@@ -62,3 +62,9 @@ export function dayAndMonthStart(now: Date, tz: string) {
     monthStart: zonedMidnightToUtc(p.year, p.month, 1, tz),
   }
 }
+
+/** The wall clock in `tz` at `date`: the day as YYYY-MM-DD and the hour (0–23). */
+export function localClock(date: Date, tz: string): { day: string; hour: number } {
+  const p = zoneParts(date, tz)
+  return { day: `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`, hour: p.hour }
+}

@@ -106,3 +106,36 @@ test("the low-stock threshold set in 'Mehr' is stored at the shop for this devic
   const off = await fetch(`${BASE}/admin/medusify/push-preferences?endpoint=${encodeURIComponent(endpoint)}`, { headers: { authorization: `Bearer ${await adminToken()}` } })
   expect(await off.json()).toMatchObject({ kinds: { low_stock: false } })
 })
+
+test("the daily summary in 'Mehr': off by default, on at 20:00 on the device's clock, the hour changes, off again", async ({ page, context }) => {
+  await context.grantPermissions(["notifications"], { origin: BASE })
+  await page.goto("")
+  await page.getByRole("button", { name: "Mit Google anmelden" }).click()
+  await expect(page.getByRole("heading", { name: "Start" }).first()).toBeVisible()
+  await page.goto("more")
+  await page.getByRole("button", { name: "Mitteilungen aktivieren" }).click()
+  await expect(page.getByText("Mitteilungen sind an")).toBeVisible({ timeout: 20_000 })
+
+  const writes: string[] = []
+  page.on("request", (r) => r.method() === "POST" && r.url().includes("/admin/medusify/push-preferences") && writes.push(r.postData() ?? ""))
+  const toggle = page.getByRole("switch", { name: "Tagesbilanz" })
+  await expect(toggle).not.toBeChecked()
+  await expect(page.getByRole("combobox", { name: /Tagesbilanz, Uhrzeit/ })).toHaveCount(0)
+  await toggle.click()
+  await expect(toggle).toBeChecked()
+  const hour = page.getByRole("combobox", { name: /Tagesbilanz, Uhrzeit/ })
+  await expect(hour).toHaveValue("20")
+  expect(JSON.parse(writes[0]!)).toMatchObject({ daily_summary: { hour: 20, tz: "Europe/Vienna" } })
+  await expect(page.getByText(/einmal täglich zur gewählten Uhrzeit \(Europe\/Vienna\)/)).toBeVisible()
+
+  await hour.selectOption("7")
+  await expect.poll(() => writes.length).toBe(2)
+  const endpoint = (JSON.parse(writes[0]!) as { endpoint: string }).endpoint
+  const read = async () => (await (await fetch(`${BASE}/admin/medusify/push-preferences?endpoint=${encodeURIComponent(endpoint)}`, { headers: { authorization: `Bearer ${await adminToken()}` } })).json()) as { daily_summary: unknown }
+  await expect.poll(async () => (await read()).daily_summary).toEqual({ hour: 7, tz: "Europe/Vienna" })
+
+  await toggle.click()
+  await expect(toggle).not.toBeChecked()
+  await expect(hour).toHaveCount(0)
+  expect((await read()).daily_summary).toBeNull()
+})

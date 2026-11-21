@@ -92,9 +92,10 @@ MFA login is required whenever you enforce it). Without login every one of them 
 | `DELETE /admin/medusify/push-subscriptions` | Remove the caller's subscription: body `{ endpoint }` or `?endpoint=`. Only your own. |
 | `POST /admin/medusify/push-subscriptions/test` | Send a test push to the caller's own devices → `{ sent, failed, removed }` |
 | `GET /admin/medusify/dashboard?tz=Europe/Vienna` | `shop_label` (the name push titles carry), revenue (per currency) and order counts for today and this month in the given time zone, `to_ship`, `recent_orders` (10) |
-| `GET /admin/medusify/push-preferences?endpoint=` | Which optional push kinds this device gets, and from how many units the low-stock message comes → `{ kinds: { canceled, return_requested, low_stock }, low_stock_threshold }`. Only your own device, otherwise `404`. |
-| `POST /admin/medusify/push-preferences` | Switch one optional kind for this device: `{ endpoint, kind: "canceled" \| "return_requested" \| "low_stock", enabled }`, or set the threshold: `{ endpoint, low_stock_threshold }` (whole number 0 to 9999) → `{ kinds, low_stock_threshold }`. Only your own device. |
-| `GET /admin/medusify/permissions` | What the signed-in user may do in the app → `{ actions: { capture, mark_paid, cancel, cancel_refunding, deliver, refund, return, ship, catalog, variant_edit, product_status, stock, stock_new_level, product_create, upload, stock_read, customers, discounts, discount_create, discount_edit, manual_order, order_edit, exchange, claim } }` (booleans) |
+| `GET /admin/medusify/push-preferences?endpoint=` | Which optional push kinds this device gets, from how many units the low-stock message comes, and when the daily summary comes → `{ kinds: { canceled, return_requested, low_stock }, low_stock_threshold, daily_summary: { hour, tz } \| null }`. Only your own device, otherwise `404`. |
+| `POST /admin/medusify/push-preferences` | Switch one optional kind for this device: `{ endpoint, kind: "canceled" \| "return_requested" \| "low_stock", enabled }`, or set the threshold: `{ endpoint, low_stock_threshold }` (whole number 0 to 9999), or the daily summary: `{ endpoint, daily_summary: { hour: 0–23, tz: IANA zone } \| null }` (null = off) → the same answer as the GET. Only your own device. |
+| `GET /admin/medusify/permissions` | What the signed-in user may do in the app → `{ actions: { capture, mark_paid, cancel, cancel_refunding, deliver, refund, return, ship, catalog, variant_edit, product_status, stock, stock_new_level, product_create, upload, stock_read, customers, discounts, discount_create, discount_edit, manual_order, order_edit, exchange, claim, reports }, rbac }` (booleans; `rbac: false` = the shop has no roles, every admin may do everything) |
+| `GET /admin/medusify/reports?from=YYYY-MM-DD&to=YYYY-MM-DD&tz=Europe/Vienna` | A period (calendar days in `tz`, both included, at most 400 days) and the one of the same length right before it → `{ timezone, generated_at, current, previous, top_products }`. Each period: `{ from, to, orders, currencies: [{ currency_code, orders, revenue, average }], units, returned_units }`; `top_products`: the five products with the most units, `{ product_id, title, units, revenue: [{ currency_code, amount }] }`. `400 medusify:bad_date`, `medusify:bad_period` (end before start), `medusify:period_too_long`. Right `reports` (`order:read`). |
 | `GET /admin/medusify/products?q=&offset=&limit=` | The catalog for the phone: products with variants, plain and rule prices, and stock per location (stocked, reserved, available, incoming) → `{ products, count, offset, limit }`. `q` searches title, SKU and barcode. |
 | `GET /admin/medusify/products/:id` | One product in the same shape → `{ product }`; `404 medusify:no_product` |
 | `GET /admin/medusify/variants/lookup?code=` | The variants a scanned code belongs to, matched in the order barcode, SKU, EAN, UPC (a UPC-A also matches its EAN-13 twin with a leading 0) → `{ matches: [{ product, variant, matched_by }] }`. Longer than 128 characters is a `400`. |
@@ -297,6 +298,7 @@ app does not offer one. A shop that wants one keeps its provider's link (for exa
 | Canceled order | `order.canceled` | yes |
 | Return requested | `order.return_requested` | yes |
 | Low stock | `inventory-level.updated`, `reservation-item.created` | yes (on by default) |
+| Daily summary | scheduled job `medusify-daily-summary` | off by default, an hour per device |
 
 **Low stock.** A device gets "{shop}: Bestand niedrig" (or "Ausverkauft" at zero) when the units that can be sold of a
 product, summed over all its locations, fall to the device's threshold or below. The threshold is set per device and shop
@@ -311,6 +313,14 @@ Medusa 2.22.x has no event for a failed payment (checked in `@medusajs/core-flow
 there is no push for it. The switches are stored per subscription, that is per device and shop, in the column
 `disabled_kinds` of `medusify_push_subscription` (migration `Migration20261118211637`, run `medusa db:migrate`). Every
 push is sent only to users with `order:read`, like the order push.
+
+**Daily summary.** At the hour a device chose (on that device's clock, its IANA zone is stored with the hour) it gets
+"{shop}: Heute" with the day's paid orders, the revenue per currency and the orders to ship, counted like the dashboard
+(next section). The job runs every 15 minutes and sends in the first run of that hour. Each device gets it once a day:
+the day is claimed with one atomic statement on the subscription (`UPDATE … WHERE daily_summary_sent_on IS DISTINCT
+FROM ? RETURNING`), so several backend processes send one message; when the push service does not take it, the day is
+given back and the next run tries again. Only users with the right `reports` get it. Columns `daily_summary_hour`,
+`daily_summary_tz`, `daily_summary_sent_on` (migration `Migration20261121104748`).
 
 Each push carries `data: { url, kind, shop, badge }`. `badge` is the number of orders to ship in this shop at that
 moment; the app adds the numbers of all shops and shows the sum on the app icon where the Badging API exists.
@@ -333,6 +343,10 @@ moment; the app adds the numbers of all shops and shows the sum on the app icon 
   applies the same rule to its order list. Payment and fulfillment status are computed by Medusa in memory (same
   logic as the admin order list), so this counts open orders page by page.
 - Amounts are in major units, exactly as Medusa stores them (49.99 is 49.99).
+- **Reports** use the same rule for revenue and paid orders. The average order value is revenue / paid orders per
+  currency. `units` are the item quantities of those orders, `returned_units` what came back of them
+  (`return_received_quantity`); the return rate the app shows is `returned_units / units`. The top products are ranked
+  by units, their revenue is the items' totals per currency.
 
 ## Several shops, one app
 

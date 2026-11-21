@@ -115,6 +115,8 @@ export const ADMIN_ACTIONS = {
     { resource: "return", operation: "update" },
     { resource: "order", operation: "update" },
   ],
+  /** Reports: revenue, orders, top products and returns of a period (all read from the orders, like the start screen). */
+  reports: [{ resource: "order", operation: "read" }],
 } as const satisfies Record<string, readonly Policy[]>
 
 export type AdminAction = keyof typeof ADMIN_ACTIONS

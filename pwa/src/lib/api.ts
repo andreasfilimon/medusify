@@ -1,4 +1,5 @@
 import { ALL_ALLOWED, type Permissions } from "./actions"
+import type { Report } from "./reports"
 import type { LookupMatch, ProductPage, ProductView } from "./catalog"
 import type { CustomerDetail, CustomerPage } from "./customers"
 import { sameDiscount, type Discount } from "./discounts"
@@ -652,15 +653,22 @@ export async function getPermissions(shop: Shop): Promise<Permissions> {
 
 export type PushKindPrefs = Record<"canceled" | "return_requested" | "low_stock", boolean>
 
-/** What a device gets: which optional kinds are on, and from how many units on the low-stock message comes (plugin 0.3.0). */
-export type PushPrefs = { kinds: PushKindPrefs; low_stock_threshold: number }
+/** The daily summary of a device: the hour on the clock of `tz`. */
+export type DailySummary = { hour: number; tz: string }
 
-type PrefsAnswer = { kinds: Partial<PushKindPrefs>; low_stock_threshold?: number }
+/**
+ * What a device gets: which optional kinds are on, from how many units on the low-stock message comes (plugin 0.3.0),
+ * and when the daily summary comes (plugin 0.5.0; `undefined` = the plugin is older and has none, `null` = off).
+ */
+export type PushPrefs = { kinds: PushKindPrefs; low_stock_threshold: number; daily_summary?: DailySummary | null }
+
+type PrefsAnswer = { kinds: Partial<PushKindPrefs>; low_stock_threshold?: number; daily_summary?: DailySummary | null }
 
 /** A plugin older than 0.3.0 answers without the low-stock kind and the threshold: those rows are left out of the screen. */
 const toPrefs = (body: PrefsAnswer): PushPrefs => ({
   kinds: { canceled: true, return_requested: true, ...body.kinds } as PushKindPrefs,
   low_stock_threshold: body.low_stock_threshold ?? -1,
+  ...("daily_summary" in body ? { daily_summary: body.daily_summary ?? null } : {}),
 })
 
 export async function getPushPreferences(shop: Shop, endpoint: string): Promise<PushPrefs> {
@@ -673,6 +681,28 @@ export async function setPushPreference(shop: Shop, endpoint: string, kind: keyo
 
 export async function setLowStockThreshold(shop: Shop, endpoint: string, threshold: number): Promise<PushPrefs> {
   return toPrefs(await json<PrefsAnswer>(await post(shop, "/admin/medusify/push-preferences", { endpoint, low_stock_threshold: threshold })))
+}
+
+/** Daily summary at this hour on the device's clock, or off (null). Plugin 0.5.0. */
+export async function setDailySummary(shop: Shop, endpoint: string, value: DailySummary | null): Promise<PushPrefs> {
+  return toPrefs(await json<PrefsAnswer>(await post(shop, "/admin/medusify/push-preferences", { endpoint, daily_summary: value })))
+}
+
+// ---- reports and rights (plugin 0.5.0) ------------------------------------------------------------------------
+
+/** Orders, revenue per currency, top products and returns of a period and the one before it. Failures: catalogFailure. */
+export async function getReport(shop: Shop, range: { from: string; to: string }, tz: string): Promise<Report> {
+  const q = new URLSearchParams({ from: range.from, to: range.to, tz })
+  return json<Report>(await shopFetch(shop, `/admin/medusify/reports?${q}`))
+}
+
+/**
+ * What the signed-in user may do, with whether the shop uses roles at all. `rbac` is null for a plugin older than 0.5.0
+ * (it does not say). Unlike getPermissions a failure is not hidden: the rights screen says it could not read them.
+ */
+export async function getRights(shop: Shop): Promise<{ actions: Permissions; rbac: boolean | null }> {
+  const body = await json<{ actions?: Partial<Permissions>; rbac?: boolean }>(await shopFetch(shop, "/admin/medusify/permissions"))
+  return { actions: { ...ALL_ALLOWED, ...body.actions }, rbac: typeof body.rbac === "boolean" ? body.rbac : null }
 }
 
 // ---- catalog and stock (plugin 0.3.0) -----------------------------------------------------------------------

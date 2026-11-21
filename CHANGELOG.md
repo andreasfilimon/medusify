@@ -2,6 +2,28 @@
 
 All notable changes to Medusify. The plugin (`medusify`) and the app in `pwa/` share one version number.
 
+## 0.5.0 - 2026-11-21
+
+Stage 4: numbers and team. Needs plugin and app at 0.5.0 (one migration: three columns on the push subscription); on an
+older plugin the reports screen shows a note and the daily summary row is left out.
+
+### Added
+
+- **Reports** (More → Berichte): a period (7 days, 30 days, this month, or chosen dates up to 400 days) next to the one
+  of the same length right before it. Revenue, paid orders and average order value per currency (never added up or
+  converted, refunds taken off), units sold and the share that came back, and the five products sold most. Plugin route
+  `GET /admin/medusify/reports?from=&to=&tz=`, right `reports` (Medusa's `order:read`).
+- **Daily summary push**: per device and shop, at a chosen hour on the device's clock: the day's orders, revenue per
+  currency and orders to ship. Off by default; sent once a day, also with several backend processes (scheduled job
+  `medusify-daily-summary`, every 15 minutes). `POST /admin/medusify/push-preferences` takes
+  `{ endpoint, daily_summary: { hour, tz } | null }`.
+- **Your rights** (More → Deine Rechte): what the signed-in role may do in each shop, in plain words.
+  `GET /admin/medusify/permissions` also says whether the shop uses roles at all (`rbac`).
+
+### Changed
+
+- More hides Berichte, Kunden and Rabattcodes when no signed-in shop allows them.
+
 ## 0.4.0 - 2026-11-20
 
 Stage 3: customers and special cases. Needs plugin and app at 0.4.0; on an older plugin the new screens show a note and

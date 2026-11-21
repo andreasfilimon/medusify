@@ -16,6 +16,7 @@ import { medusifyStaticMiddleware } from "../lib/static"
 import {
   DeletePushSubscription,
   GetDashboardQuery,
+  GetReportQuery,
   GetLookupQuery,
   GetCustomersQuery,
   PostManualOrder,
@@ -185,6 +186,11 @@ const routes: MiddlewareRoute[] = [
     // Revenue and orders: the same right Medusa asks for on /admin/orders. No-op without Medusa's RBAC module.
     // `authorize` has to come before the query middleware (it records the policies the query config reads).
     middlewares: [authorizeIfAvailable(ORDER_READ), validateAndTransformQuery(GetDashboardQuery, {})],
+  },
+  {
+    matcher: "/admin/medusify/reports",
+    method: "GET",
+    middlewares: [authorizeIfAvailable([...ADMIN_ACTIONS.reports]), validateAndTransformQuery(GetReportQuery, {})],
   },
 ]
 

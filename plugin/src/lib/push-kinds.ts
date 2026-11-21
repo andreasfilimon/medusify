@@ -6,8 +6,9 @@
  * (core-flows, utils/dist/core-flows/events.js). Medusa has no event for a failed payment, so there is no such kind.
  * `low_stock` comes from `reservation-item.created` (an order took stock) and `inventory-level.updated` (stock edited,
  * a return received); the threshold per device is `low_stock_threshold` on the subscription.
+ * `daily_summary` is not switched here but chosen with its hour (`daily_summary_hour`, off by default), see lib/daily-summary.ts.
  */
-export const PUSH_KINDS = ["order_placed", "canceled", "return_requested", "low_stock"] as const
+export const PUSH_KINDS = ["order_placed", "canceled", "return_requested", "low_stock", "daily_summary"] as const
 export type PushKind = (typeof PUSH_KINDS)[number]
 
 export const SWITCHABLE_KINDS = ["canceled", "return_requested", "low_stock"] as const

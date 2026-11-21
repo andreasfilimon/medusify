@@ -3,6 +3,7 @@ import { Modules } from "@medusajs/framework/utils"
 import { MEDUSIFY_PUSH_MODULE } from "../../src/constants"
 import lowStockReservationPushHandler from "../../src/subscribers/low-stock-reservation-push"
 import orderPlacedPushHandler from "../../src/subscribers/order-placed-push"
+import { sendDailySummaries } from "../../src/lib/daily-summary"
 import { createAdmin, sub } from "../helpers/admin"
 import { createCatalogProduct, createLocation } from "../helpers/catalog"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
@@ -69,6 +70,14 @@ runner({
         }
       })
 
+      it("the reports need the right to read orders as well", async () => {
+        const url = "/admin/medusify/reports?from=2026-03-01&to=2026-03-07"
+        expect((await api.get(url, { headers: reader.headers })).status).toBe(200)
+        for (const who of [noOrders, noRole]) {
+          await expect(api.get(url, { headers: who.headers })).rejects.toMatchObject({ response: { status: 403 } })
+        }
+      })
+
       it("medusa's own order list agrees with that (same rule)", async () => {
         expect((await api.get("/admin/orders", { headers: reader.headers })).status).toBe(200)
         await expect(api.get("/admin/orders", { headers: noOrders.headers })).rejects.toMatchObject({
@@ -100,6 +109,20 @@ runner({
         expect(await service.listPushSubscriptions({}, { take: null })).toHaveLength(0)
       })
 
+      it("the daily summary goes only to users who may see the reports (read orders), the others keep their setting", async () => {
+        const service = getContainer().resolve(MEDUSIFY_PUSH_MODULE) as any
+        const evening = new Date("2026-01-15T19:05:00Z") // 20:05 in Vienna
+        const seed = (n: number, userId: string) =>
+          service.createPushSubscriptions({ endpoint: sub(n).endpoint, p256dh: sub(n).keys.p256dh, auth: sub(n).keys.auth, user_id: userId, daily_summary_hour: 20, daily_summary_tz: "Europe/Vienna" })
+        await seed(1, reader.userId)
+        await seed(2, noOrders.userId)
+        await seed(3, noRole.userId)
+        expect(await sendDailySummaries(getContainer(), evening)).toEqual({ sent: 1, skipped: 2 })
+        expect(sendNotification.mock.calls.map((c) => c[0].endpoint)).toEqual([sub(1).endpoint])
+        const left = await service.listPushSubscriptions({ endpoint: [sub(2).endpoint, sub(3).endpoint] }, { take: null })
+        expect(left.map((s: any) => [s.daily_summary_hour, s.daily_summary_sent_on])).toEqual([[20, null], [20, null]])
+      })
+
       it("a new order is pushed only to users who may read orders, also to subscriptions made before the right was removed", async () => {
         const service = getContainer().resolve(MEDUSIFY_PUSH_MODULE) as any
         const seed = (n: number, userId: string) =>
@@ -120,15 +143,16 @@ runner({
 
       describe("the app's actions (permissions and the return route)", () => {
         const RETURN_RIGHTS = ["return:create", "return:update", "order:update"]
-        const CATALOG_KEYS = ["catalog", "variant_edit", "product_status", "stock", "stock_new_level", "product_create", "upload", "stock_read", "customers", "discounts", "discount_create", "discount_edit", "manual_order", "order_edit", "exchange", "claim"]
+        const CATALOG_KEYS = ["catalog", "variant_edit", "product_status", "stock", "stock_new_level", "product_create", "upload", "stock_read", "customers", "discounts", "discount_create", "discount_edit", "manual_order", "order_edit", "exchange", "claim", "reports"]
         const ALL = { capture: true, mark_paid: true, cancel: true, cancel_refunding: true, deliver: true, refund: true, return: true, ship: true, ...Object.fromEntries(CATALOG_KEYS.map((k) => [k, true])) }
         const NONE = { capture: false, mark_paid: false, cancel: false, cancel_refunding: false, deliver: false, refund: false, return: false, ship: false, ...Object.fromEntries(CATALOG_KEYS.map((k) => [k, false])) }
         const actionsOf = async (who: { headers: Record<string, string> }) =>
           (await api.get("/admin/medusify/permissions", { headers: who.headers })).data.actions
 
-        it("a reader of orders may do none of the actions, a user without any role neither", async () => {
-          expect(await actionsOf(reader)).toEqual(NONE)
+        it("a reader of orders may only see the reports, a user without any role nothing", async () => {
+          expect(await actionsOf(reader)).toEqual({ ...NONE, reports: true })
           expect(await actionsOf(noRole)).toEqual(NONE)
+          expect((await api.get("/admin/medusify/permissions", { headers: reader.headers })).data.rbac).toBe(true)
         })
 
         it("each action turns on with exactly the rights Medusa asks for on its own route", async () => {
@@ -154,7 +178,7 @@ runner({
             ["product_create", ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create", "sales_channel:update"], { product_create: true, stock_new_level: true }],
             ["half of product_create (no sales_channel:update)", ["product:create", "product_variant:create", "inventory_item:create", "inventory_level:create"], { stock_new_level: true }],
             ["upload", ["file:create"], { upload: true }],
-            ["customers", ["customer:read", "order:read"], { customers: true }],
+            ["customers", ["customer:read", "order:read"], { customers: true, reports: true }],
             ["half of customers (no order:read)", ["customer:read"], {}],
             ["discounts", ["promotion:read"], { discounts: true }],
             ["discount_create", ["promotion:create"], { discount_create: true }],
@@ -163,6 +187,7 @@ runner({
             ["order_edit", ["order_change:create", "order_change:update", "order_change:delete", "order:update"], { order_edit: true, cancel: true }],
             ["exchange", ["order_exchange:create", "order_exchange:update", "order_exchange:delete", "order:update"], { exchange: true, cancel: true }],
             ["claim", ["order_claim:create", "order_claim:update", "order_claim:delete", "order:update"], { claim: true, cancel: true }],
+            ["reports", ["order:read"], { reports: true }],
           ]
           for (const [n, [name, keys, on]] of cases.entries()) {
             const who = await createAdmin(getContainer(), `case${n}@example.invalid`)
@@ -182,9 +207,9 @@ runner({
           // order:* covers only the order half of each action, so none of the two-part actions without the other half
           const ord = await createAdmin(getContainer(), "wild-ord@example.invalid")
           await giveRole(ord.userId, "all-order", ["order:*"])
-          expect(await actionsOf(ord)).toEqual({ ...NONE, cancel: true })
+          expect(await actionsOf(ord)).toEqual({ ...NONE, cancel: true, reports: true })
           await giveRole(ord.userId, "capture-too", ["capture:create"])
-          expect(await actionsOf(ord)).toEqual({ ...NONE, cancel: true, capture: true })
+          expect(await actionsOf(ord)).toEqual({ ...NONE, cancel: true, capture: true, reports: true })
         })
 
         async function fulfilledOrder() {
